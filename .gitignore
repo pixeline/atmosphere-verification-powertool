@@ -6,3 +6,6 @@ dist/
 *.tsbuildinfo
 coverage/
 .vercel
+
+# Guard: a global ~/.gitignore_global ignores *.sql; keep drizzle migrations tracked
+!drizzle/**/*.sql
