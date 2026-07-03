@@ -1,0 +1,31 @@
+services:
+  app:
+    build: .
+    image: ghcr.io/pixeline/vidi:latest
+    env_file: .env
+    depends_on: [db]
+    restart: unless-stopped
+  worker:
+    build: .
+    image: ghcr.io/pixeline/vidi:latest
+    command: ["npx", "tsx", "src/crawler/scheduler.ts"]
+    env_file: .env
+    depends_on: [db]
+    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vidi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: vidi
+    volumes: [vidi_pg:/var/lib/postgresql/data]
+    restart: unless-stopped
+  caddy:
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+    depends_on: [app]
+    restart: unless-stopped
+volumes: { vidi_pg: {}, caddy_data: {} }
