@@ -16,6 +16,7 @@
     "@atproto/jwk-jose": "^0.2.3",
     "@atproto/oauth-client-node": "^0.4.5",
     "drizzle-orm": "^0.45.2",
+    "iron-session": "^8.0.4",
     "jose": "^6.2.3",
     "next": "16.2.10",
     "pg": "^8.22.0",
