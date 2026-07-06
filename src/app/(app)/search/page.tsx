@@ -1,8 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { SearchForm, type SearchFilters } from '../../../components/SearchForm'
-import { AccountCard } from '../../../components/AccountCard'
-import { useOrg } from '../../../lib/hooks/useOrg'
+import { toast } from 'sonner'
+import { SearchForm, type SearchFilters } from '@/components/SearchForm'
+import { AccountCard } from '@/components/AccountCard'
+import { Button } from '@/components/ui/button'
+import { useOrg } from '@/lib/hooks/useOrg'
 
 type TV = { did: string; handle: string }
 type Account = {
@@ -11,6 +13,7 @@ type Account = {
   displayName?: string | null
   description?: string | null
   isCustomDomain?: boolean
+  verifiedBy?: string[]
 }
 
 export default function SearchPage() {
@@ -43,31 +46,40 @@ export default function SearchPage() {
       method: 'POST',
       body: JSON.stringify({ orgId, subjects }),
     })
-    alert(JSON.stringify((await r.json()).results))
+    if (!r.ok) {
+      toast.error('Verification failed')
+      return
+    }
+    toast.success(`Verified ${subjects.length} account${subjects.length === 1 ? '' : 's'}`)
   }
 
   async function backlog() {
-    for (const a of results.filter((x) => sel.has(x.did))) {
+    const targets = results.filter((x) => sel.has(x.did))
+    for (const a of targets) {
       await fetch('/vidi/api/backlog', {
         method: 'POST',
         body: JSON.stringify({ orgId, subjectDid: a.did }),
       })
     }
-    alert('Added to backlog')
+    toast.success('Added to backlog')
   }
 
   return (
-    <div>
+    <div className="flex flex-col gap-6">
       <SearchForm trustedVerifiers={tvs} onSearch={search} />
-      <div style={{ display: 'flex', gap: 8, margin: '12px 0' }}>
-        <button onClick={verify} disabled={!sel.size}>
-          Verify selected
-        </button>
-        <button onClick={backlog} disabled={!sel.size}>
-          Add to backlog
-        </button>
-      </div>
-      <div style={{ display: 'grid', gap: 8 }}>
+
+      {results.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Button onClick={verify} disabled={!sel.size}>
+            Verify selected
+          </Button>
+          <Button variant="outline" onClick={backlog} disabled={!sel.size}>
+            Add to backlog
+          </Button>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2">
         {results.map((a) => (
           <AccountCard
             key={a.did}

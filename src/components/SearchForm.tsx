@@ -1,5 +1,10 @@
 'use client'
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Card, CardContent } from '@/components/ui/card'
 
 type TV = { did: string; handle: string }
 
@@ -23,58 +28,61 @@ export function SearchForm({
   const [verifiedByAnyOf, setVerifiedByAnyOf] = useState<string[]>([])
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        onSearch({ text, customDomainOnly, followedByVerified, verifiedByAnyOf })
-      }}
-    >
-      <div>
-        <label htmlFor="search-text">Text in bio or handle</label>
-        <input id="search-text" value={text} onChange={(e) => setText(e.target.value)} />
-      </div>
-      <div>
-        <label htmlFor="search-custom-domain">
-          <input
-            id="search-custom-domain"
-            type="checkbox"
-            checked={customDomainOnly}
-            onChange={(e) => setCustomDomainOnly(e.target.checked)}
-          />{' '}
-          Handle is a domain
-        </label>
-      </div>
-      <div>
-        <label htmlFor="search-followed-by-verified">
-          <input
-            id="search-followed-by-verified"
-            type="checkbox"
-            checked={followedByVerified}
-            onChange={(e) => setFollowedByVerified(e.target.checked)}
-          />{' '}
-          Followed by a verified account
-        </label>
-      </div>
-      <fieldset>
-        <legend>Verified by</legend>
-        {trustedVerifiers.map((tv) => (
-          <div key={tv.did}>
-            <label htmlFor={`tv-${tv.did}`}>
-              <input
-                id={`tv-${tv.did}`}
-                type="checkbox"
-                onChange={(e) =>
-                  setVerifiedByAnyOf((prev) =>
-                    e.target.checked ? [...prev, tv.did] : prev.filter((d) => d !== tv.did)
-                  )
-                }
-              />{' '}
-              {tv.handle}
-            </label>
+    <Card>
+      <CardContent>
+        <form
+          className="flex flex-col gap-5"
+          onSubmit={(e) => {
+            e.preventDefault()
+            onSearch({ text, customDomainOnly, followedByVerified, verifiedByAnyOf })
+          }}
+        >
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="search-text">Text in bio or handle</Label>
+            <Input id="search-text" value={text} onChange={(e) => setText(e.target.value)} />
           </div>
-        ))}
-      </fieldset>
-      <button type="submit">Search</button>
-    </form>
+
+          <div className="flex flex-col gap-3">
+            <Label className="flex items-center gap-2">
+              <Checkbox
+                id="search-custom-domain"
+                checked={customDomainOnly}
+                onCheckedChange={(checked) => setCustomDomainOnly(checked === true)}
+              />
+              Handle is a domain
+            </Label>
+            <Label className="flex items-center gap-2">
+              <Checkbox
+                id="search-followed-by-verified"
+                checked={followedByVerified}
+                onCheckedChange={(checked) => setFollowedByVerified(checked === true)}
+              />
+              Followed by a verified account
+            </Label>
+          </div>
+
+          <fieldset className="flex flex-col gap-3">
+            <legend className="mb-1 text-sm font-medium">Verified by</legend>
+            {trustedVerifiers.map((tv) => (
+              <Label key={tv.did} className="flex items-center gap-2">
+                <Checkbox
+                  id={`tv-${tv.did}`}
+                  onCheckedChange={(checked) =>
+                    setVerifiedByAnyOf((prev) =>
+                      checked === true ? [...prev, tv.did] : prev.filter((d) => d !== tv.did)
+                    )
+                  }
+                />
+                {tv.handle}
+              </Label>
+            ))}
+          </fieldset>
+
+          <Button type="submit" className="self-start">
+            Search
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

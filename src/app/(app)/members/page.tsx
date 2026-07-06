@@ -1,52 +1,133 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useOrg } from '../../../lib/hooks/useOrg'
+import { toast } from 'sonner'
+import { useOrg } from '@/lib/hooks/useOrg'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 type Member = { memberDid: string; handle: string; role: string }
 
 export function MembersView({ role, members, orgId }: { role: string; members: Member[]; orgId: number }) {
   const [handle, setHandle] = useState('')
   const [did, setDid] = useState('')
+
   async function invite() {
-    await fetch('/vidi/api/members', { method: 'POST', body: JSON.stringify({ orgId, handle, did }) })
+    const res = await fetch('/vidi/api/members', {
+      method: 'POST',
+      body: JSON.stringify({ orgId, handle, did }),
+    })
+    if (!res.ok) {
+      toast.error('Could not invite member')
+      return
+    }
+    toast.success('Member invited')
     location.reload()
   }
+
   async function revoke(memberDid: string) {
-    await fetch('/vidi/api/members', { method: 'DELETE', body: JSON.stringify({ orgId, memberDid }) })
+    const res = await fetch('/vidi/api/members', {
+      method: 'DELETE',
+      body: JSON.stringify({ orgId, memberDid }),
+    })
+    if (!res.ok) {
+      toast.error('Could not revoke member')
+      return
+    }
+    toast.success('Member revoked')
     location.reload()
   }
+
   return (
-    <div>
-      <h2>Members</h2>
-      <ul>
-        {members.map((m) => (
-          <li key={m.memberDid}>
-            {m.handle} ({m.role})
-            {role === 'owner' && m.role !== 'owner' && <button onClick={() => revoke(m.memberDid)}>Revoke</button>}
-          </li>
-        ))}
-      </ul>
+    <div className="flex flex-col gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Members</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {members.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No members yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Handle</TableHead>
+                  <TableHead>Role</TableHead>
+                  {role === 'owner' && <TableHead className="text-right">Actions</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.map((m) => (
+                  <TableRow key={m.memberDid}>
+                    <TableCell>{m.handle}</TableCell>
+                    <TableCell>
+                      <Badge variant={m.role === 'owner' ? 'default' : 'secondary'}>{m.role}</Badge>
+                    </TableCell>
+                    {role === 'owner' && (
+                      <TableCell className="text-right">
+                        {m.role !== 'owner' && (
+                          <Button size="sm" variant="outline" onClick={() => revoke(m.memberDid)}>
+                            Revoke
+                          </Button>
+                        )}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
       {role === 'owner' && (
-        <div>
-          <h3>Invite helper</h3>
-          <input placeholder="handle" value={handle} onChange={(e) => setHandle(e.target.value)} />
-          <input placeholder="did:plc:…" value={did} onChange={(e) => setDid(e.target.value)} />
-          <button onClick={invite}>Invite</button>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Invite helper</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form
+              className="flex flex-col gap-4 sm:flex-row sm:items-end"
+              onSubmit={(e) => {
+                e.preventDefault()
+                invite()
+              }}
+            >
+              <div className="flex flex-1 flex-col gap-2">
+                <Label htmlFor="invite-handle">Handle</Label>
+                <Input
+                  id="invite-handle"
+                  placeholder="handle"
+                  value={handle}
+                  onChange={(e) => setHandle(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-1 flex-col gap-2">
+                <Label htmlFor="invite-did">DID</Label>
+                <Input
+                  id="invite-did"
+                  placeholder="did:plc:…"
+                  value={did}
+                  onChange={(e) => setDid(e.target.value)}
+                />
+              </div>
+              <Button type="submit">Invite</Button>
+            </form>
+          </CardContent>
+        </Card>
       )}
     </div>
   )
 }
 
 export default function MembersPage() {
-  const { orgId } = useOrg()
-  const [role, setRole] = useState('helper')
+  const { orgId, role } = useOrg()
   const [members, setMembers] = useState<Member[]>([])
+
   useEffect(() => {
-    fetch('/vidi/api/org/context')
-      .then((r) => r.json())
-      .then((d) => setRole(d.role ?? 'helper'))
-      .catch(() => {})
     if (orgId) {
       fetch(`/vidi/api/members?orgId=${orgId}`)
         .then((r) => r.json())
@@ -54,5 +135,10 @@ export default function MembersPage() {
         .catch(() => {})
     }
   }, [orgId])
-  return orgId ? <MembersView role={role} members={members} orgId={orgId} /> : <p>Loading…</p>
+
+  return orgId ? (
+    <MembersView role={role ?? 'helper'} members={members} orgId={orgId} />
+  ) : (
+    <p className="text-sm text-muted-foreground">Loading…</p>
+  )
 }
