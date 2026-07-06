@@ -13,7 +13,7 @@ type Account = {
   displayName?: string | null
   description?: string | null
   isCustomDomain?: boolean
-  verifiedBy?: string[]
+  verifiers?: { did: string; handle: string | null }[]
 }
 
 export default function SearchPage() {
@@ -79,7 +79,7 @@ export default function SearchPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-4">
         {results.map((a) => (
           <AccountCard
             key={a.did}
