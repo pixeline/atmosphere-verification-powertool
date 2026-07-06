@@ -47,12 +47,28 @@ describe('validateEnv', () => {
 
   it('throws if any required var is missing', () => {
     for (const k of ALL_REQUIRED) process.env[k] = 'set'
+    process.env.VIDI_PUBLIC_URL = 'https://belgium-atmosphe.re/vidi'
     delete process.env.VIDI_TOKEN_ENC_KEY
     expect(() => validateEnv()).toThrow('Missing required env var: VIDI_TOKEN_ENC_KEY')
   })
 
-  it('does not throw when all required vars are set', () => {
+  it('does not throw when all required vars are set (non-loopback, confidential mode)', () => {
     for (const k of ALL_REQUIRED) process.env[k] = 'set'
+    process.env.VIDI_PUBLIC_URL = 'https://belgium-atmosphe.re/vidi'
+    expect(() => validateEnv()).not.toThrow()
+  })
+
+  it('requires VIDI_OAUTH_PRIVATE_JWK when VIDI_PUBLIC_URL is not a loopback host', () => {
+    for (const k of ALL_REQUIRED) process.env[k] = 'set'
+    process.env.VIDI_PUBLIC_URL = 'https://belgium-atmosphe.re/vidi'
+    delete process.env.VIDI_OAUTH_PRIVATE_JWK
+    expect(() => validateEnv()).toThrow('Missing required env var: VIDI_OAUTH_PRIVATE_JWK')
+  })
+
+  it('does NOT require VIDI_OAUTH_PRIVATE_JWK when VIDI_PUBLIC_URL is the loopback base', () => {
+    for (const k of ALL_REQUIRED) process.env[k] = 'set'
+    process.env.VIDI_PUBLIC_URL = 'http://127.0.0.1:3000/vidi'
+    delete process.env.VIDI_OAUTH_PRIVATE_JWK
     expect(() => validateEnv()).not.toThrow()
   })
 })

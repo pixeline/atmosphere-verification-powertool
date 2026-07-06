@@ -36,6 +36,22 @@ A full-stack verification tool built with Next.js and Docker.
    - Owner logs in with their ATProto account
    - After authentication, POST to `/vidi/api/org/onboard` to register the organization
 
+### Local login (loopback)
+
+For local development, full atproto OAuth login works without a hosted domain or
+signing key:
+
+1. Set `VIDI_PUBLIC_URL=http://127.0.0.1:3000/vidi` in `.env`.
+2. Leave `VIDI_OAUTH_PRIVATE_JWK` unset — it is not needed locally. When
+   `VIDI_PUBLIC_URL` points at a loopback host (`127.0.0.1`, `localhost`, or
+   `[::1]`), Vidi automatically switches to the atproto special public
+   loopback OAuth client (`token_endpoint_auth_method: none`, no keyset)
+   instead of the confidential `private_key_jwt` client used in production.
+3. Access the app at `http://127.0.0.1:3000/vidi` (not `http://localhost:3000/vidi` —
+   the loopback client's redirect URI is pinned to the literal `127.0.0.1`
+   address per the atproto OAuth spec, so the login flow only completes from
+   that origin).
+
 ## Deployment
 
 ### GitHub Secrets

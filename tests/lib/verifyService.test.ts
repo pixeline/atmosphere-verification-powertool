@@ -2,10 +2,24 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const createRecord = vi.fn()
 const deleteRecord = vi.fn()
+// getProfile on the ORG agent must never be used any more (see publicGetProfile below) —
+// kept only to assert it stays untouched by the fallback path.
 const getProfile = vi.fn()
 
 vi.mock('../../src/lib/atproto/orgAgent', () => ({
   getOrgAgent: async () => ({ com: { atproto: { repo: { createRecord, deleteRecord } } }, getProfile }),
+}))
+
+// The identity-resolution fallback in verifyService now goes through an
+// unauthenticated public AppView AtpAgent, not the org's OAuth-bound agent.
+// Mock @atproto/api so we can assert THAT getProfile is what gets called.
+const publicGetProfile = vi.fn()
+vi.mock('@atproto/api', () => ({
+  AtpAgent: class {
+    constructor() {
+      return { getProfile: publicGetProfile } as any
+    }
+  },
 }))
 
 const checkGuards = vi.fn()
@@ -73,6 +87,7 @@ beforeEach(() => {
   createRecord.mockReset()
   deleteRecord.mockReset()
   getProfile.mockReset()
+  publicGetProfile.mockReset()
   checkGuards.mockReset()
   calls.inserts = []
   calls.selects = []
@@ -114,8 +129,10 @@ describe('verifyOne', () => {
     // accounts table was consulted for server-side identity resolution.
     const accountsSelect = calls.selects.find((c) => c.table === accounts)
     expect(accountsSelect).toBeTruthy()
-    // getProfile fallback must NOT be used when accounts has a row.
+    // getProfile fallback must NOT be used when accounts has a row (neither
+    // the org agent's nor the public AppView agent's).
     expect(getProfile).not.toHaveBeenCalled()
+    expect(publicGetProfile).not.toHaveBeenCalled()
 
     // Write happens as the org, not the actor.
     expect(createRecord).toHaveBeenCalledTimes(1)
@@ -145,11 +162,11 @@ describe('verifyOne', () => {
     expect(auditValues.subjectDid).toBe('did:plc:sub')
   })
 
-  it('falls back to agent.getProfile for the handle/displayName when the subject is not in the local accounts index', async () => {
+  it('falls back to the PUBLIC AppView agent getProfile for the handle/displayName when the subject is not in the local accounts index', async () => {
     checkGuards.mockResolvedValue({ ok: true })
     createRecord.mockResolvedValue({ data: { uri: 'at://did:plc:org/app.bsky.graph.verification/rk2', cid: 'y' } })
     accountsSelectResult = [] // not indexed locally
-    getProfile.mockResolvedValue({ data: { handle: 'fromprofile.example', displayName: 'From Profile' } })
+    publicGetProfile.mockResolvedValue({ data: { handle: 'fromprofile.example', displayName: 'From Profile' } })
 
     const res = await verifyOne({
       org: { id: 1, did: 'did:plc:org' },
@@ -158,8 +175,10 @@ describe('verifyOne', () => {
     })
 
     expect(res.outcome).toBe('verified')
-    expect(getProfile).toHaveBeenCalledTimes(1)
-    expect(getProfile).toHaveBeenCalledWith({ actor: 'did:plc:sub2' })
+    // The PUBLIC AppView agent's getProfile is used, never the org agent's.
+    expect(publicGetProfile).toHaveBeenCalledTimes(1)
+    expect(publicGetProfile).toHaveBeenCalledWith({ actor: 'did:plc:sub2' })
+    expect(getProfile).not.toHaveBeenCalled()
 
     const createArgs = createRecord.mock.calls[0][0]
     expect(createArgs.record.handle).toBe('fromprofile.example')
