@@ -14,15 +14,14 @@ export async function POST() {
 
   // Prove we hold the org writer session: the owner must have logged in AS
   // the org account, so its OAuth session is stored under actor.did.
-  let agent
+  let agent, handle
   try {
     agent = await getOrgAgent(actor.did)
+    const profile = await agent.getProfile({ actor: actor.did })
+    handle = profile.data.handle
   } catch {
     return NextResponse.json({ error: 'no_org_session' }, { status: 400 })
   }
-
-  const profile = await agent.getProfile({ actor: actor.did })
-  const handle = profile.data.handle
 
   const [org] = await db
     .insert(orgs)
