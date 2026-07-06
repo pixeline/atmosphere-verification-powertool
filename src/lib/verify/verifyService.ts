@@ -43,7 +43,10 @@ export async function revokeOne(p: { org: Org; actorDid: string; subjectDid: str
       .select()
       .from(accountVerifications)
       .where(and(eq(accountVerifications.verifierDid, p.org.did), eq(accountVerifications.subjectDid, p.subjectDid)))
-    if (!rows[0]) return { outcome: 'error' as const }
+    if (!rows[0]) {
+      await audit(p.org.id, p.actorDid, 'revoke', p.subjectDid, 'error')
+      return { outcome: 'error' as const }
+    }
     const uri = rows[0].recordUri
     const rkey = uri.split('/').pop()!
     const agent = await getOrgAgent(p.org.did)
