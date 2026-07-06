@@ -78,3 +78,13 @@ export async function runCrawl(service = process.env.MU_APPVIEW_URL ?? 'https://
     })
     .where(eq(crawlRuns.id, run.id))
 }
+
+// ESM-safe CLI entry: check if this module is the entry point
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runCrawl()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error('Crawler failed:', err)
+      process.exit(1)
+    })
+}
