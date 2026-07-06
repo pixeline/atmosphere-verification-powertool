@@ -2,6 +2,40 @@
 
 A full-stack verification tool built with Next.js and Docker.
 
+## First Run
+
+### Environment Setup
+
+1. Copy `.env.example` to `.env` and configure:
+   ```bash
+   cp .env.example .env
+   ```
+   Update the following values:
+   - `DATABASE_URL`: PostgreSQL connection string
+   - `VIDI_PUBLIC_URL`: Public URL of the deployment
+   - `VIDI_TOKEN_ENC_KEY`: 32-byte base64 encryption key
+   - `VIDI_COOKIE_SECRET`: 32+ character secret
+   - `VIDI_SUPERADMIN_DIDS`: Comma-separated list of superadmin DIDs
+   - `VIDI_SEED_ALLOWLIST`: (Optional) Comma-separated DIDs to seed into allowlist
+   - `VIDI_SEED_KEYWORDS`: (Optional) Comma-separated keywords to seed into crawl
+   - `VIDI_OAUTH_PRIVATE_JWK`: OAuth signing key (ES256 JWK format)
+
+2. Run database migrations:
+   ```bash
+   docker compose run --rm app npx tsx src/db/migrate.ts
+   ```
+
+3. Seed initial data (optional, safe to re-run):
+   ```bash
+   docker compose run --rm app npx tsx scripts/seed.ts
+   ```
+
+4. Start the application and owner onboarding:
+   - Open the app at your `VIDI_PUBLIC_URL`
+   - Navigate to `/vidi`
+   - Owner logs in with their ATProto account
+   - After authentication, POST to `/vidi/api/org/onboard` to register the organization
+
 ## Deployment
 
 ### GitHub Secrets
