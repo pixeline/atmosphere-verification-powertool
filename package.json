@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@atproto/api": "^0.20.25",
+    "@atproto/jwk": "^0.7.3",
+    "@atproto/jwk-jose": "^0.2.3",
     "@atproto/oauth-client-node": "^0.4.5",
     "drizzle-orm": "^0.45.2",
     "jose": "^6.2.3",
