@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const createRecord = vi.fn()
 const deleteRecord = vi.fn()
+const getProfile = vi.fn()
 
 vi.mock('../../src/lib/atproto/orgAgent', () => ({
-  getOrgAgent: async () => ({ com: { atproto: { repo: { createRecord, deleteRecord } } } }),
+  getOrgAgent: async () => ({ com: { atproto: { repo: { createRecord, deleteRecord } } }, getProfile }),
 }))
 
 const checkGuards = vi.fn()
@@ -17,7 +18,12 @@ const calls: { inserts: Array<{ table: unknown; values: unknown; conflict?: unkn
   deletes: [],
 }
 
+// selectResult drives the accountVerifications lookup (used by revokeOne).
+// accountsSelectResult drives the accounts lookup (used by verifyOne's
+// server-side identity resolution) — kept separate so tests can control each
+// table's mocked query result independently.
 let selectResult: unknown[] = []
+let accountsSelectResult: unknown[] = []
 
 vi.mock('../../src/db/client', () => {
   return {
@@ -43,7 +49,7 @@ vi.mock('../../src/db/client', () => {
           return {
             where: async (where: unknown) => {
               calls.selects.push({ table, where })
-              return selectResult
+              return table === accounts ? accountsSelectResult : selectResult
             },
           }
         },
@@ -61,16 +67,18 @@ vi.mock('../../src/db/client', () => {
 })
 
 import { verifyOne, revokeOne } from '../../src/lib/verify/verifyService'
-import { accountVerifications } from '../../src/db/schema'
+import { accountVerifications, accounts } from '../../src/db/schema'
 
 beforeEach(() => {
   createRecord.mockReset()
   deleteRecord.mockReset()
+  getProfile.mockReset()
   checkGuards.mockReset()
   calls.inserts = []
   calls.selects = []
   calls.deletes = []
   selectResult = []
+  accountsSelectResult = []
 })
 
 function auditInserts() {
@@ -80,22 +88,34 @@ function auditInserts() {
 describe('verifyOne', () => {
   it('skips duplicates without writing a record', async () => {
     checkGuards.mockResolvedValue({ ok: false, reason: 'duplicate' })
-    const res = await verifyOne({ org: { id: 1, did: 'did:plc:org' }, actorDid: 'did:plc:a', subject: { did: 'did:plc:s', handle: 's.bsky.social' } })
+    const res = await verifyOne({ org: { id: 1, did: 'did:plc:org' }, actorDid: 'did:plc:a', subject: { did: 'did:plc:s' } })
     expect(res.outcome).toBe('skipped-duplicate')
     expect(createRecord).not.toHaveBeenCalled()
   })
 
-  it('writes the verification record as the org, upserts, and audits the member as actor', async () => {
+  it('writes the verification record as the org using the SERVER-resolved handle (ignoring any spoofed client handle), upserts, and audits the member as actor', async () => {
     checkGuards.mockResolvedValue({ ok: true })
     createRecord.mockResolvedValue({ data: { uri: 'at://did:plc:org/app.bsky.graph.verification/rk1', cid: 'x' } })
+    // Our indexed accounts table is the authority: it has the REAL handle.
+    accountsSelectResult = [{ did: 'did:plc:sub', handle: 'real.example', displayName: 'Real Name' }]
 
     const res = await verifyOne({
       org: { id: 1, did: 'did:plc:org' },
       actorDid: 'did:plc:member',
-      subject: { did: 'did:plc:sub', handle: 'sub.example', displayName: 'Sub' },
+      // Only `did` is part of the trusted contract now; TS structurally allows
+      // extra fields on a plain object literal, so this also documents that
+      // even if a caller smuggles a spoofed handle/displayName through, they
+      // are never read.
+      subject: { did: 'did:plc:sub', handle: 'spoofed-handle.evil', displayName: 'Spoofed Name' } as unknown as { did: string },
     })
 
     expect(res.outcome).toBe('verified')
+
+    // accounts table was consulted for server-side identity resolution.
+    const accountsSelect = calls.selects.find((c) => c.table === accounts)
+    expect(accountsSelect).toBeTruthy()
+    // getProfile fallback must NOT be used when accounts has a row.
+    expect(getProfile).not.toHaveBeenCalled()
 
     // Write happens as the org, not the actor.
     expect(createRecord).toHaveBeenCalledTimes(1)
@@ -103,6 +123,11 @@ describe('verifyOne', () => {
     expect(createArgs.repo).toBe('did:plc:org')
     expect(createArgs.collection).toBe('app.bsky.graph.verification')
     expect(createArgs.record.subject).toBe('did:plc:sub')
+    // The record must use the SERVER-resolved (indexed) handle/displayName,
+    // never the spoofed client-supplied values.
+    expect(createArgs.record.handle).toBe('real.example')
+    expect(createArgs.record.displayName).toBe('Real Name')
+    expect(createArgs.record.handle).not.toBe('spoofed-handle.evil')
 
     // accountVerifications upsert ran.
     const upsertCall = calls.inserts.find((c) => c.table === accountVerifications)
@@ -120,14 +145,36 @@ describe('verifyOne', () => {
     expect(auditValues.subjectDid).toBe('did:plc:sub')
   })
 
-  it('returns outcome error and audits without rethrowing when createRecord throws', async () => {
+  it('falls back to agent.getProfile for the handle/displayName when the subject is not in the local accounts index', async () => {
     checkGuards.mockResolvedValue({ ok: true })
-    createRecord.mockRejectedValue(new Error('pds down'))
+    createRecord.mockResolvedValue({ data: { uri: 'at://did:plc:org/app.bsky.graph.verification/rk2', cid: 'y' } })
+    accountsSelectResult = [] // not indexed locally
+    getProfile.mockResolvedValue({ data: { handle: 'fromprofile.example', displayName: 'From Profile' } })
 
     const res = await verifyOne({
       org: { id: 1, did: 'did:plc:org' },
       actorDid: 'did:plc:member',
-      subject: { did: 'did:plc:sub', handle: 'sub.example', displayName: 'Sub' },
+      subject: { did: 'did:plc:sub2' },
+    })
+
+    expect(res.outcome).toBe('verified')
+    expect(getProfile).toHaveBeenCalledTimes(1)
+    expect(getProfile).toHaveBeenCalledWith({ actor: 'did:plc:sub2' })
+
+    const createArgs = createRecord.mock.calls[0][0]
+    expect(createArgs.record.handle).toBe('fromprofile.example')
+    expect(createArgs.record.displayName).toBe('From Profile')
+  })
+
+  it('returns outcome error and audits without rethrowing when createRecord throws', async () => {
+    checkGuards.mockResolvedValue({ ok: true })
+    createRecord.mockRejectedValue(new Error('pds down'))
+    accountsSelectResult = [{ did: 'did:plc:sub', handle: 'sub.example', displayName: 'Sub' }]
+
+    const res = await verifyOne({
+      org: { id: 1, did: 'did:plc:org' },
+      actorDid: 'did:plc:member',
+      subject: { did: 'did:plc:sub' },
     })
 
     expect(res.outcome).toBe('error')

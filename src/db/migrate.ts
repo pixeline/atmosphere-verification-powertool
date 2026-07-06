@@ -1,5 +1,7 @@
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { db, pool } from './client'
+import { validateEnv } from '../lib/env'
+import { isMain } from '../lib/isMain'
 
 export async function runMigrations() {
   await migrate(db, { migrationsFolder: './drizzle' })
@@ -8,16 +10,11 @@ export async function runMigrations() {
 // ESM-safe CLI entrypoint check. This project has no "type": "module" in
 // package.json, but is run via `npx tsx src/db/migrate.ts` (an ESM-capable
 // loader) — `require.main === module` is unreliable here, so compare
-// import.meta.url against the invoked script path instead.
-const isMain = (() => {
-  try {
-    return import.meta.url === `file://${process.argv[1]}`
-  } catch {
-    return false
-  }
-})()
-
-if (isMain) {
+// (realpath-resolved) import.meta.url against the invoked script path
+// instead. realpath resolution guards against symlinked deploy paths
+// silently defeating the naive string comparison.
+if (isMain(import.meta.url)) {
+  validateEnv()
   runMigrations()
     .then(() => pool.end())
     .then(() => process.exit(0))

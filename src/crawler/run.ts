@@ -7,6 +7,8 @@ import { crawlVerifications, type VerificationEdge } from './verificationsCrawl'
 import { collectFollowedByVerified } from './followsCrawl'
 import { runKeywordSeed } from './keywordSeed'
 import { hydrateAccounts } from './hydrate'
+import { validateEnv } from '../lib/env'
+import { isMain } from '../lib/isMain'
 
 /**
  * Runs one full crawl pass. Each phase is isolated in its own try/catch so a
@@ -79,8 +81,10 @@ export async function runCrawl(service = process.env.MU_APPVIEW_URL ?? 'https://
     .where(eq(crawlRuns.id, run.id))
 }
 
-// ESM-safe CLI entry: check if this module is the entry point
-if (import.meta.url === `file://${process.argv[1]}`) {
+// ESM-safe CLI entry: check if this module is the entry point (realpath-based
+// so a symlinked deploy path doesn't defeat the comparison).
+if (isMain(import.meta.url)) {
+  validateEnv()
   runCrawl()
     .then(() => process.exit(0))
     .catch((err) => {

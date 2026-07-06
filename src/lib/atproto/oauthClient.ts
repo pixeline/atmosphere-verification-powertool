@@ -2,8 +2,9 @@ import { NodeOAuthClient } from '@atproto/oauth-client-node'
 import { Keyset } from '@atproto/jwk'
 import { JoseKey } from '@atproto/jwk-jose'
 import { PgStateStore, PgSessionStore } from './stores'
+import { requireEnv } from '../env'
 
-const base = () => process.env.VIDI_PUBLIC_URL!
+const base = () => requireEnv('VIDI_PUBLIC_URL')
 
 export function clientMetadata() {
   return {
@@ -35,8 +36,7 @@ let _keyset: Keyset | null = null
  */
 export async function getKeyset(): Promise<Keyset> {
   if (_keyset) return _keyset
-  const raw = process.env.VIDI_OAUTH_PRIVATE_JWK
-  if (!raw) throw new Error('VIDI_OAUTH_PRIVATE_JWK is not set')
+  const raw = requireEnv('VIDI_OAUTH_PRIVATE_JWK')
   const jwk = JSON.parse(raw)
   const key = await JoseKey.fromJWK(jwk)
   _keyset = new Keyset([key])

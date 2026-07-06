@@ -1,6 +1,8 @@
 import { db } from '../src/db/client'
 import { crawlSeeds } from '../src/db/schema'
 import { addToAllowlist } from '../src/lib/allowlist'
+import { validateEnv } from '../src/lib/env'
+import { isMain } from '../src/lib/isMain'
 
 export function parseSeeds(s: string): string[] {
   return s.split(',').map((x) => x.trim()).filter(Boolean)
@@ -16,15 +18,8 @@ export async function seed() {
 }
 
 // ESM-safe CLI entrypoint check. Mirror of src/db/migrate.ts pattern.
-const isMain = (() => {
-  try {
-    return import.meta.url === `file://${process.argv[1]}`
-  } catch {
-    return false
-  }
-})()
-
-if (isMain) {
+if (isMain(import.meta.url)) {
+  validateEnv()
   seed()
     .then(() => process.exit(0))
     .catch((err) => {

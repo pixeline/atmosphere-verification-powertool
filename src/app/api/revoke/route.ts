@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
     await assertActiveMember(actor.did, orgId)
     const [org] = await db.select().from(orgs).where(eq(orgs.id, orgId))
     if (!org) return NextResponse.json({ error: 'org_not_found' }, { status: 404 })
+    if (org.status !== 'active') return NextResponse.json({ error: 'org_inactive' }, { status: 403 })
     const outcome = await revokeOne({ org: { id: org.id, did: org.did }, actorDid: actor.did, subjectDid })
     return NextResponse.json({ outcome })
   })

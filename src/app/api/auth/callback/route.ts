@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getOAuthClient } from '@/lib/atproto/oauthClient'
 import { getSession } from '@/lib/authz/session'
+import { requireEnv } from '@/lib/env'
 
 export async function GET(req: NextRequest) {
   const client = await getOAuthClient()
@@ -8,5 +9,5 @@ export async function GET(req: NextRequest) {
   const s = await getSession()
   s.did = session.did
   await s.save()
-  return NextResponse.redirect(`${process.env.VIDI_PUBLIC_URL}/search`)
+  return NextResponse.redirect(`${requireEnv('VIDI_PUBLIC_URL')}/search`)
 }
