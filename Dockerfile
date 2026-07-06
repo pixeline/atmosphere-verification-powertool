@@ -1,7 +1,11 @@
 FROM node:24-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# npm install (not npm ci): dev happens on macOS, which prunes linux-musl
+# native optional deps from the committed lockfile; npm ci would error on
+# their absence when building on linux. npm install keeps the locked versions
+# and adds the correct platform binaries.
+RUN npm install --no-audit --no-fund
 
 FROM node:24-alpine AS build
 WORKDIR /app
