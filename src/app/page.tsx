@@ -100,7 +100,7 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-svh items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-sm overflow-visible">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-semibold tracking-tight">Vidi</CardTitle>
           <CardDescription>Sign in with your atproto handle to verify accounts.</CardDescription>
