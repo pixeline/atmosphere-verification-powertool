@@ -3,10 +3,9 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { useOrg } from '@/lib/hooks/useOrg'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Card, CardContent } from '@/components/ui/card'
 
-type BacklogItem = { subjectDid: string }
+type BacklogItem = { subjectDid: string; note?: string | null }
 
 export default function BacklogPage() {
   const { orgId } = useOrg()
@@ -35,39 +34,38 @@ export default function BacklogPage() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>To Be Verified</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nothing pending review.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Subject</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((i) => (
-                <TableRow key={i.subjectDid}>
-                  <TableCell className="font-mono text-xs">{i.subjectDid}</TableCell>
-                  <TableCell className="flex justify-end gap-2">
-                    <Button size="sm" onClick={() => act(i.subjectDid, 'verified')}>
-                      Mark verified
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => act(i.subjectDid, 'skipped')}>
-                      Skip
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">To Be Verified</h1>
+        <p className="text-muted-foreground">Accounts queued for review before verifying.</p>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="flex items-center justify-center rounded-xl border border-dashed border-border px-6 py-12 text-center text-sm text-muted-foreground">
+          Nothing pending review.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {items.map((i) => (
+            <Card key={i.subjectDid}>
+              <CardContent className="flex items-center justify-between gap-4">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate font-mono text-xs">{i.subjectDid}</span>
+                  {i.note && <span className="truncate text-sm text-muted-foreground">{i.note}</span>}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button size="sm" onClick={() => act(i.subjectDid, 'verified')}>
+                    Mark verified
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => act(i.subjectDid, 'skipped')}>
+                    Skip
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

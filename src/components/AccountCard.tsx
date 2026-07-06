@@ -27,7 +27,7 @@ export function AccountCard({
 }) {
   const verifiers = acc.verifiers ?? []
   return (
-    <Card>
+    <Card className="transition-colors hover:bg-muted/40">
       <CardContent className="flex items-start gap-3">
         <Checkbox
           id={`acc-${acc.did}`}

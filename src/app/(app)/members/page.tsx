@@ -42,10 +42,15 @@ export function MembersView({ role, members, orgId }: { role: string; members: M
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Members</h1>
+        <p className="text-muted-foreground">People who can verify accounts for this organization.</p>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Members</CardTitle>
+          <CardTitle>Team</CardTitle>
         </CardHeader>
         <CardContent>
           {members.length === 0 ? (
@@ -69,7 +74,7 @@ export function MembersView({ role, members, orgId }: { role: string; members: M
                     {role === 'owner' && (
                       <TableCell className="text-right">
                         {m.role !== 'owner' && (
-                          <Button size="sm" variant="outline" onClick={() => revoke(m.memberDid)}>
+                          <Button size="sm" variant="destructive" onClick={() => revoke(m.memberDid)}>
                             Revoke
                           </Button>
                         )}
@@ -114,7 +119,9 @@ export function MembersView({ role, members, orgId }: { role: string; members: M
                   onChange={(e) => setDid(e.target.value)}
                 />
               </div>
-              <Button type="submit">Invite</Button>
+              <Button type="submit" className="w-full sm:w-auto">
+                Invite
+              </Button>
             </form>
           </CardContent>
         </Card>

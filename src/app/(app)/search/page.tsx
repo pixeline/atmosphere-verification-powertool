@@ -21,6 +21,7 @@ export default function SearchPage() {
   const [tvs, setTvs] = useState<TV[]>([])
   const [results, setResults] = useState<Account[]>([])
   const [sel, setSel] = useState<Set<string>>(new Set())
+  const [hasSearched, setHasSearched] = useState(false)
 
   useEffect(() => {
     fetch('/vidi/api/trusted-verifiers')
@@ -36,6 +37,7 @@ export default function SearchPage() {
     })
     setResults((await r.json()).results ?? [])
     setSel(new Set())
+    setHasSearched(true)
   }
 
   async function verify() {
@@ -65,37 +67,53 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Search</h1>
+        <p className="text-muted-foreground">Find accounts to verify and act on them in bulk.</p>
+      </div>
+
       <SearchForm trustedVerifiers={tvs} onSearch={search} />
 
       {results.length > 0 && (
-        <div className="flex items-center gap-2">
-          <Button onClick={verify} disabled={!sel.size}>
-            Verify selected
-          </Button>
-          <Button variant="outline" onClick={backlog} disabled={!sel.size}>
-            Add to backlog
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            {results.length} account{results.length === 1 ? '' : 's'} found
+          </p>
+          <div className="flex items-center gap-2">
+            <Button onClick={verify} disabled={!sel.size}>
+              Verify selected
+            </Button>
+            <Button variant="outline" onClick={backlog} disabled={!sel.size}>
+              Add to backlog
+            </Button>
+          </div>
         </div>
       )}
 
-      <div className="flex flex-col gap-4">
-        {results.map((a) => (
-          <AccountCard
-            key={a.did}
-            acc={a}
-            selected={sel.has(a.did)}
-            onToggle={() =>
-              setSel((p) => {
-                const n = new Set(p)
-                if (n.has(a.did)) n.delete(a.did)
-                else n.add(a.did)
-                return n
-              })
-            }
-          />
-        ))}
-      </div>
+      {results.length > 0 ? (
+        <div className="flex flex-col gap-4">
+          {results.map((a) => (
+            <AccountCard
+              key={a.did}
+              acc={a}
+              selected={sel.has(a.did)}
+              onToggle={() =>
+                setSel((p) => {
+                  const n = new Set(p)
+                  if (n.has(a.did)) n.delete(a.did)
+                  else n.add(a.did)
+                  return n
+                })
+              }
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center justify-center rounded-xl border border-dashed border-border px-6 py-12 text-center text-sm text-muted-foreground">
+          {hasSearched ? 'No accounts match these filters.' : 'Run a search to see accounts.'}
+        </div>
+      )}
     </div>
   )
 }
