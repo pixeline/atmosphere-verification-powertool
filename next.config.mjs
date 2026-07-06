@@ -1,3 +1,3 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = { basePath: '/vidi', assetPrefix: '/vidi' }
+const nextConfig = { basePath: '/vidi' }
 export default nextConfig
