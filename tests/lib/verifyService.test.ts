@@ -185,6 +185,22 @@ describe('verifyOne', () => {
     expect(createArgs.record.displayName).toBe('From Profile')
   })
 
+  it('upserts an accounts row when identity resolution falls back to the live profile', async () => {
+    accountsSelectResult = [] // not indexed yet
+    checkGuards.mockResolvedValue({ ok: true })
+    publicGetProfile.mockResolvedValue({
+      data: { handle: 'newfound.brussels', displayName: 'New Account', description: 'a bio', avatar: null },
+    })
+    createRecord.mockResolvedValue({ data: { uri: 'at://did:plc:org/app.bsky.graph.verification/rk1', cid: 'x' } })
+
+    await verifyOne({ org: { id: 1, did: 'did:plc:org' }, actorDid: 'did:plc:member', subject: { did: 'did:plc:newfound' } })
+
+    const accountsInsert = calls.inserts.find((i) => (i.values as any)?.did === 'did:plc:newfound')
+    expect(accountsInsert).toBeTruthy()
+    expect((accountsInsert!.values as any).handle).toBe('newfound.brussels')
+    expect((accountsInsert!.values as any).seedSource).toBe('verify-fallback')
+  })
+
   it('returns outcome error and audits without rethrowing when createRecord throws', async () => {
     checkGuards.mockResolvedValue({ ok: true })
     createRecord.mockRejectedValue(new Error('pds down'))

@@ -3,6 +3,8 @@ import { db } from '../../db/client'
 import { accountVerifications, accounts, verificationActions } from '../../db/schema'
 import { getOrgAgent } from '../atproto/orgAgent'
 import { getPublicAppViewAgent } from '../atproto/publicAgent'
+import { isCustomDomain } from '../domain/handleClassifier'
+import { upsertAccountRow } from '../../crawler/hydrate'
 import { checkGuards } from './guardrails'
 
 type Org = { id: number; did: string }
@@ -33,6 +35,17 @@ async function resolveSubjectIdentity(did: string): Promise<{ handle: string; di
     return { handle: rows[0].handle, displayName: rows[0].displayName ?? undefined }
   }
   const prof = await getPublicAppViewAgent().getProfile({ actor: did })
+  // Not yet in our index (e.g. a live-search result): persist it now so it
+  // shows up correctly, badges and all, in the very next local search.
+  await upsertAccountRow({
+    did,
+    handle: prof.data.handle,
+    displayName: prof.data.displayName ?? null,
+    description: prof.data.description ?? null,
+    avatar: prof.data.avatar ?? null,
+    isCustomDomain: isCustomDomain(prof.data.handle),
+    seedSource: 'verify-fallback',
+  })
   return { handle: prof.data.handle, displayName: prof.data.displayName }
 }
 
