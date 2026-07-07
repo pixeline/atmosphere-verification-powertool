@@ -3,7 +3,17 @@ import { db } from '../db/client'
 import { accounts } from '../db/schema'
 import { isCustomDomain } from '../lib/domain/handleClassifier'
 
-export function toAccountRow(p: AppBskyActorDefs.ProfileViewDetailed, seedSource: string) {
+export type AccountRow = {
+  did: string
+  handle: string
+  displayName: string | null
+  description: string | null
+  avatar: string | null
+  isCustomDomain: boolean
+  seedSource: string
+}
+
+export function toAccountRow(p: AppBskyActorDefs.ProfileViewDetailed, seedSource: string): AccountRow {
   return {
     did: p.did,
     handle: p.handle,
@@ -15,6 +25,20 @@ export function toAccountRow(p: AppBskyActorDefs.ProfileViewDetailed, seedSource
   }
 }
 
+export async function upsertAccountRow(row: AccountRow): Promise<void> {
+  await db.insert(accounts).values(row)
+    .onConflictDoUpdate({
+      target: accounts.did,
+      set: {
+        handle: row.handle,
+        displayName: row.displayName,
+        description: row.description,
+        avatar: row.avatar,
+        isCustomDomain: row.isCustomDomain,
+      },
+    })
+}
+
 export async function hydrateAccounts(agent: AtpAgent, dids: string[], seedSource = 'crawl'): Promise<void> {
   for (let i = 0; i < dids.length; i += 25) {
     const batch = dids.slice(i, i + 25)
@@ -22,18 +46,7 @@ export async function hydrateAccounts(agent: AtpAgent, dids: string[], seedSourc
       const { data } = await agent.getProfiles({ actors: batch })
       for (const p of data.profiles) {
         try {
-          const row = toAccountRow(p, seedSource)
-          await db.insert(accounts).values(row)
-            .onConflictDoUpdate({
-              target: accounts.did,
-              set: {
-                handle: row.handle,
-                displayName: row.displayName,
-                description: row.description,
-                avatar: row.avatar,
-                isCustomDomain: row.isCustomDomain,
-              },
-            })
+          await upsertAccountRow(toAccountRow(p, seedSource))
         } catch (err) {
           console.error(`hydrateAccounts: failed to upsert account ${p.did}`, err)
         }
