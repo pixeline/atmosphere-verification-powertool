@@ -37,5 +37,5 @@ jobs:
           script: |
             cd /opt/vidi
             docker compose pull
-            docker compose run --rm app npx tsx src/db/migrate.ts
             docker compose up -d
+            docker compose exec -T app npx tsx src/db/migrate.ts
