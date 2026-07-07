@@ -3,6 +3,7 @@ services:
     build: .
     image: ghcr.io/pixeline/vidi:latest
     env_file: .env
+    ports: ["127.0.0.1:3000:3000"]
     depends_on: [db]
     restart: unless-stopped
   worker:
@@ -20,12 +21,4 @@ services:
       POSTGRES_DB: vidi
     volumes: [vidi_pg:/var/lib/postgresql/data]
     restart: unless-stopped
-  caddy:
-    image: caddy:2-alpine
-    ports: ["80:80", "443:443"]
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-    depends_on: [app]
-    restart: unless-stopped
-volumes: { vidi_pg: {}, caddy_data: {} }
+volumes: { vidi_pg: {} }

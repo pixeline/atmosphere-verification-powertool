@@ -1,5 +1,0 @@
-belgium-atmosphe.re {
-	handle /vidi* {
-		reverse_proxy app:3000
-	}
-}
