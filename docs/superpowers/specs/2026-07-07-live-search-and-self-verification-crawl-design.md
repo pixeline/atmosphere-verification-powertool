@@ -128,7 +128,60 @@ up their "Verified by" badge on the next crawl.
 
 ---
 
-## Testing (both parts)
+## Part 3: Crawl Keyword Management (Owner-Only Settings Page)
+
+### Problem
+
+`crawl_seeds` (the keyword list that seeds discovery via typeahead search) can
+currently only be changed via `scripts/seed.ts` or raw SQL — no UI exists for
+an org owner to add, disable, or re-enable keywords, or to see what's currently
+configured.
+
+### What it does
+
+A new standalone **Settings** page, visible in the nav only to org owners
+(hidden from helpers entirely — same visibility pattern as the rest of the app,
+checked client-side via `useOrg()`'s existing `role` field; the underlying API
+routes are owner-gated server-side regardless, via the same `assertOwner`
+pattern already used for invite-helper, so this holds even if someone
+navigates to the URL directly).
+
+The page shows:
+- A list of all `crawl_seeds` rows (keyword + enabled state) with a toggle per
+  row to enable/disable.
+- An "Add keyword" input + button. Adding a keyword that already exists
+  **re-enables it** rather than erroring (upsert: `onConflictDoUpdate` setting
+  `enabled = true`) — so disabling and later re-adding the same keyword works
+  intuitively.
+- A **"Run crawl now"** button that triggers `runCrawl()` on demand instead of
+  waiting for the next scheduled run (worker's default `0 3 * * *`).
+
+### API
+
+- `GET /vidi/api/crawl-seeds` — list all keywords + enabled state. Owner-only.
+- `POST /vidi/api/crawl-seeds {keyword}` — upsert (insert or re-enable). Owner-only.
+- `PATCH /vidi/api/crawl-seeds {keyword, enabled}` — toggle a keyword's enabled
+  state. Owner-only.
+- `POST /vidi/api/crawl/run` — trigger a crawl. Owner-only. **Fire-and-forget**:
+  responds immediately (`{ok:true, started:true}`) without awaiting the full
+  crawl, which can take minutes. This is safe because Vidi runs as a
+  long-lived Node process in Docker (`next start`), not on serverless — the
+  same execution model the scheduled `worker` process already relies on to run
+  `runCrawl()` unattended. (This assumption would need revisiting if Vidi were
+  ever ported to a serverless host.)
+
+### Accepted simplification
+
+A manual trigger firing at the same moment as the scheduled 3am run could
+result in two concurrent crawls. Every write in the crawler is already
+idempotent (`onConflictDoUpdate`/`onConflictDoNothing`), so this cannot corrupt
+data — worst case is duplicated network calls and wasted work in that narrow
+window. No locking is added for v1; noted here as a conscious, low-risk
+tradeoff rather than an oversight.
+
+---
+
+## Testing (all parts)
 
 - Unit test for the live-search-merge logic (dedup by DID, `indexed` flag
   assignment, local-version-wins-on-conflict).
@@ -138,8 +191,16 @@ up their "Verified by" badge on the next crawl.
   present, merges results, and runs enrichment over the combined set.
 - UI test: the two graph-dependent filter controls disable and clear when the
   live-network checkbox is checked.
-- Crawler: verified live (per precedent), not unit-tested at the orchestration
-  level.
+- Crawler self-verification fix: verified live (per precedent), not
+  unit-tested at the orchestration level.
+- Crawl-seeds routes: owner-only gate (helper gets 403) on all four endpoints;
+  add-existing-keyword re-enables rather than erroring; toggle flips enabled
+  state.
+- `/vidi/api/crawl/run`: owner-only gate; responds without awaiting `runCrawl`
+  to completion (assert the route returns before a deliberately slow mocked
+  `runCrawl` resolves).
+- Settings page UI test: nav link and page content are absent/blocked for a
+  helper role.
 
 ## Out of scope / YAGNI
 
@@ -147,3 +208,7 @@ up their "Verified by" badge on the next crawl.
 - No caching of live search responses.
 - No change to how "followed by a verified account" or TV-list crawling work —
   only the *verifier DID list fed into* `crawlVerifications` changes.
+- No hard-delete of crawl-seed keywords in v1 — disable via the toggle covers
+  the practical need, and matches the schema's existing `enabled` design.
+- No locking/mutex around concurrent crawl runs (see Accepted simplification
+  above).
