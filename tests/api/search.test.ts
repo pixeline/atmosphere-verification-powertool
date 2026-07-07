@@ -16,9 +16,15 @@ vi.mock('../../src/lib/search/queryBuilder', () => ({
   searchAccounts: async () => searchResults,
 }))
 
-// verification rows returned by the enrichment query (accountVerifications LEFT JOIN trustedVerifiers)
+// verification rows returned by the enrichment query
+// (accountVerifications LEFT JOIN trustedVerifiers LEFT JOIN orgs)
 let verificationRows: unknown[] = [
-  { subjectDid: 'did:plc:verified', verifierDid: 'did:plc:tv1', handle: 'trusted-verifier.bsky.social' },
+  {
+    subjectDid: 'did:plc:verified',
+    verifierDid: 'did:plc:tv1',
+    tvHandle: 'trusted-verifier.bsky.social',
+    orgHandle: null,
+  },
 ]
 
 vi.mock('../../src/db/client', () => ({
@@ -26,7 +32,9 @@ vi.mock('../../src/db/client', () => ({
     select: () => ({
       from: () => ({
         leftJoin: () => ({
-          where: async () => verificationRows,
+          leftJoin: () => ({
+            where: async () => verificationRows,
+          }),
         }),
       }),
     }),
@@ -40,7 +48,12 @@ describe('search route', () => {
     vi.resetModules()
     getActor = async () => ({ did: 'did:plc:a' })
     verificationRows = [
-      { subjectDid: 'did:plc:verified', verifierDid: 'did:plc:tv1', handle: 'trusted-verifier.bsky.social' },
+      {
+        subjectDid: 'did:plc:verified',
+        verifierDid: 'did:plc:tv1',
+        tvHandle: 'trusted-verifier.bsky.social',
+        orgHandle: null,
+      },
     ]
   })
 
@@ -83,9 +96,32 @@ describe('search route', () => {
     expect(plain.verifiers).toEqual([])
   })
 
-  it('falls back to the DID string when the verifier is not in the trusted verifier cache', async () => {
+  it('falls back to the onboarded org handle when the verifier is not on the trusted verifier list', async () => {
     verificationRows = [
-      { subjectDid: 'did:plc:verified', verifierDid: 'did:plc:unknown-tv', handle: null },
+      {
+        subjectDid: 'did:plc:verified',
+        verifierDid: 'did:plc:self-org',
+        tvHandle: null,
+        orgHandle: 'atproto-belgium.eurosky.social',
+      },
+    ]
+    vi.doMock('../../src/lib/authz/session', () => ({ getActor }))
+    const { POST } = await import('../../src/app/api/search/route')
+    const req = new Request('http://x/vidi/api/search', {
+      method: 'POST',
+      body: JSON.stringify({ orgId: 1, filters: {} }),
+    })
+    const res = await POST(req as any)
+    const body = await res.json()
+    const verified = body.results.find((r: any) => r.did === 'did:plc:verified')
+    expect(verified.verifiers).toEqual([
+      { did: 'did:plc:self-org', handle: 'atproto-belgium.eurosky.social' },
+    ])
+  })
+
+  it('falls back to the DID string when the verifier is neither a trusted verifier nor an onboarded org', async () => {
+    verificationRows = [
+      { subjectDid: 'did:plc:verified', verifierDid: 'did:plc:unknown-tv', tvHandle: null, orgHandle: null },
     ]
     vi.doMock('../../src/lib/authz/session', () => ({ getActor }))
     const { POST } = await import('../../src/app/api/search/route')

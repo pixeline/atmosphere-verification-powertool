@@ -4,7 +4,7 @@ import { getActor } from '../../../lib/authz/session'
 import { assertActiveMember, AuthzError } from '../../../lib/authz/membership'
 import { searchAccounts } from '../../../lib/search/queryBuilder'
 import { db } from '../../../db/client'
-import { accountVerifications, trustedVerifiers } from '../../../db/schema'
+import { accountVerifications, trustedVerifiers, orgs } from '../../../db/schema'
 
 export type Verifier = { did: string; handle: string | null }
 
@@ -27,15 +27,20 @@ export async function POST(req: NextRequest) {
       .select({
         subjectDid: accountVerifications.subjectDid,
         verifierDid: accountVerifications.verifierDid,
-        handle: trustedVerifiers.handle,
+        // Prefer Mu's official trusted-verifier list (when configured); fall
+        // back to our own onboarded org handle, since a self-verifying org
+        // won't appear on that externally-sourced list until Mu adds it.
+        tvHandle: trustedVerifiers.handle,
+        orgHandle: orgs.handle,
       })
       .from(accountVerifications)
       .leftJoin(trustedVerifiers, eq(accountVerifications.verifierDid, trustedVerifiers.did))
+      .leftJoin(orgs, eq(accountVerifications.verifierDid, orgs.did))
       .where(inArray(accountVerifications.subjectDid, dids))
 
     for (const row of rows) {
       const list = verifiersByDid.get(row.subjectDid) ?? []
-      list.push({ did: row.verifierDid, handle: row.handle ?? null })
+      list.push({ did: row.verifierDid, handle: row.tvHandle ?? row.orgHandle ?? null })
       verifiersByDid.set(row.subjectDid, list)
     }
   }
