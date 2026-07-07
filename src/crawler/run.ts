@@ -1,7 +1,7 @@
 import { AtpAgent } from '@atproto/api'
 import { eq } from 'drizzle-orm'
 import { db } from '../db/client'
-import { accountSignals, crawlRuns } from '../db/schema'
+import { accountSignals, crawlRuns, orgs } from '../db/schema'
 import { syncTrustedVerifiers } from './trustedVerifiers'
 import { crawlVerifications, type VerificationEdge } from './verificationsCrawl'
 import { collectFollowedByVerified } from './followsCrawl'
@@ -25,6 +25,17 @@ export async function runCrawl(service = process.env.MU_APPVIEW_URL ?? 'https://
     verifierDids = await syncTrustedVerifiers(agent)
   } catch (err) {
     console.error('runCrawl: syncTrustedVerifiers failed', err)
+  }
+
+  // An onboarded org IS a trusted verifier by definition (that's the entire
+  // premise of the allowlist gate) — always crawl its own verification
+  // records too, independent of whether it also happens to be on Mu's
+  // external TRUSTED_VERIFIER_LIST_URIS list.
+  try {
+    const ownOrgs = await db.select({ did: orgs.did }).from(orgs)
+    verifierDids = [...new Set([...verifierDids, ...ownOrgs.map((o) => o.did)])]
+  } catch (err) {
+    console.error('runCrawl: failed to load org DIDs for self-verification crawl', err)
   }
 
   let edges: VerificationEdge[] = []
