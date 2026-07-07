@@ -1,9 +1,12 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useOrg } from '@/lib/hooks/useOrg'
 import { OnboardOrg } from '@/components/OnboardOrg'
+import { Button } from '@/components/ui/button'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const NAV_LINKS = [
   { href: '/search', label: 'Search' },
@@ -11,9 +14,31 @@ const NAV_LINKS = [
   { href: '/members', label: 'Members' },
 ]
 
+function ActorIdentity({ handle }: { handle: string | null }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        {handle?.trim() ? (
+          handle.trim().charAt(0).toUpperCase()
+        ) : (
+          <User className="size-4" />
+        )}
+      </span>
+      {handle && <span className="hidden text-sm text-muted-foreground sm:inline">@{handle}</span>}
+    </div>
+  )
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { orgId, authenticated, loading, refresh } = useOrg()
+  const { orgId, isAllowlisted, handle, authenticated, loading, refresh } = useOrg()
+
+  async function signOut() {
+    await fetch('/vidi/api/auth/logout', { method: 'POST' })
+    window.location.href = '/vidi'
+  }
+
+  const orgResolved = !loading && authenticated && orgId == null
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -36,10 +61,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
           </nav>
+          {authenticated && (
+            <div className="ml-auto flex items-center gap-3">
+              <ActorIdentity handle={handle} />
+              <Button variant="outline" size="sm" onClick={signOut}>
+                Sign out
+              </Button>
+            </div>
+          )}
         </div>
       </header>
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
-        {!loading && authenticated && orgId == null && <OnboardOrg onOnboarded={refresh} />}
+        {orgResolved && isAllowlisted && <OnboardOrg onOnboarded={refresh} />}
+        {orgResolved && !isAllowlisted && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>No organization access yet</CardTitle>
+              <CardDescription>
+                You haven&apos;t been added to an organization yet. Ask an org owner to invite you.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
         {children}
       </main>
     </div>
