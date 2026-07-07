@@ -3,6 +3,7 @@ import { eq, inArray } from 'drizzle-orm'
 import { getActor } from '../../../lib/authz/session'
 import { assertActiveMember, AuthzError } from '../../../lib/authz/membership'
 import { searchAccounts } from '../../../lib/search/queryBuilder'
+import { searchActorsLive, type LiveActor } from '../../../lib/search/liveSearch'
 import { db } from '../../../db/client'
 import { accountVerifications, trustedVerifiers, orgs } from '../../../db/schema'
 
@@ -18,11 +19,31 @@ export async function POST(req: NextRequest) {
     if (e instanceof AuthzError) return NextResponse.json({ error: e.message }, { status: e.status })
     throw e
   }
-  const results = await searchAccounts(filters ?? {})
-  const dids = results.map((r) => r.did)
 
+  const results = await searchAccounts(filters ?? {})
+
+  let liveResults: LiveActor[] = []
+  if (filters?.liveNetwork && filters?.text) {
+    try {
+      liveResults = await searchActorsLive(filters.text, 25)
+    } catch (err) {
+      console.error('search: live network search failed', err)
+    }
+    if (filters.customDomainOnly) {
+      liveResults = liveResults.filter((a) => a.isCustomDomain)
+    }
+  }
+
+  const localDids = new Set(results.map((r) => r.did))
+  const liveOnly = liveResults.filter((a) => !localDids.has(a.did))
+  const combined = [
+    ...results.map((r) => ({ ...r, indexed: true as const })),
+    ...liveOnly.map((a) => ({ ...a, indexed: false as const })),
+  ]
+
+  const allDids = combined.map((r) => r.did)
   const verifiersByDid = new Map<string, Verifier[]>()
-  if (dids.length) {
+  if (allDids.length) {
     const rows = await db
       .select({
         subjectDid: accountVerifications.subjectDid,
@@ -36,7 +57,7 @@ export async function POST(req: NextRequest) {
       .from(accountVerifications)
       .leftJoin(trustedVerifiers, eq(accountVerifications.verifierDid, trustedVerifiers.did))
       .leftJoin(orgs, eq(accountVerifications.verifierDid, orgs.did))
-      .where(inArray(accountVerifications.subjectDid, dids))
+      .where(inArray(accountVerifications.subjectDid, allDids))
 
     for (const row of rows) {
       const list = verifiersByDid.get(row.subjectDid) ?? []
@@ -46,6 +67,6 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({
-    results: results.map((r) => ({ ...r, verifiers: verifiersByDid.get(r.did) ?? [] })),
+    results: combined.map((r) => ({ ...r, verifiers: verifiersByDid.get(r.did) ?? [] })),
   })
 }
