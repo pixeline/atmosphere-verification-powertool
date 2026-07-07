@@ -14,6 +14,7 @@ type Account = {
   description?: string | null
   isCustomDomain?: boolean
   verifiers?: Verifier[]
+  indexed?: boolean
 }
 
 export function AccountCard({
@@ -40,6 +41,7 @@ export function AccountCard({
             <span className="font-semibold">{acc.displayName || acc.handle}</span>
             <span className="text-muted-foreground">@{acc.handle}</span>
             {acc.isCustomDomain && <Badge variant="secondary">custom domain</Badge>}
+            {acc.indexed === false && <Badge variant="secondary">Not yet indexed</Badge>}
             {verifiers.length > 0 && (
               <Badge variant="outline">
                 Verified by {verifiers.map((v) => v.handle ?? v.did).join(', ')}

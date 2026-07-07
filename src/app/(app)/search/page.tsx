@@ -14,6 +14,7 @@ type Account = {
   description?: string | null
   isCustomDomain?: boolean
   verifiers?: { did: string; handle: string | null }[]
+  indexed?: boolean
 }
 
 export default function SearchPage() {
@@ -60,7 +61,18 @@ export default function SearchPage() {
     for (const a of targets) {
       await fetch('/vidi/api/backlog', {
         method: 'POST',
-        body: JSON.stringify({ orgId, subjectDid: a.did }),
+        body: JSON.stringify({
+          orgId,
+          subjectDid: a.did,
+          ...(a.indexed === false
+            ? {
+                handle: a.handle,
+                displayName: a.displayName,
+                description: a.description,
+                isCustomDomain: a.isCustomDomain,
+              }
+            : {}),
+        }),
       })
     }
     toast.success('Added to backlog')
