@@ -37,15 +37,19 @@ async function resolveSubjectIdentity(did: string): Promise<{ handle: string; di
   const prof = await getPublicAppViewAgent().getProfile({ actor: did })
   // Not yet in our index (e.g. a live-search result): persist it now so it
   // shows up correctly, badges and all, in the very next local search.
-  await upsertAccountRow({
-    did,
-    handle: prof.data.handle,
-    displayName: prof.data.displayName ?? null,
-    description: prof.data.description ?? null,
-    avatar: prof.data.avatar ?? null,
-    isCustomDomain: isCustomDomain(prof.data.handle),
-    seedSource: 'verify-fallback',
-  })
+  try {
+    await upsertAccountRow({
+      did,
+      handle: prof.data.handle,
+      displayName: prof.data.displayName ?? null,
+      description: prof.data.description ?? null,
+      avatar: prof.data.avatar ?? null,
+      isCustomDomain: isCustomDomain(prof.data.handle),
+      seedSource: 'verify-fallback',
+    })
+  } catch (err) {
+    console.error(`resolveSubjectIdentity: failed to upsert account ${did}`, err)
+  }
   return { handle: prof.data.handle, displayName: prof.data.displayName }
 }
 

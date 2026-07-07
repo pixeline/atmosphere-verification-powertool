@@ -38,6 +38,7 @@ const calls: { inserts: Array<{ table: unknown; values: unknown; conflict?: unkn
 // table's mocked query result independently.
 let selectResult: unknown[] = []
 let accountsSelectResult: unknown[] = []
+let shouldRejectAccountsUpsert = false
 
 vi.mock('../../src/db/client', () => {
   return {
@@ -50,6 +51,9 @@ vi.mock('../../src/db/client', () => {
             return {
               onConflictDoUpdate: async (conflict: unknown) => {
                 record.conflict = conflict
+                if (shouldRejectAccountsUpsert && table === accounts) {
+                  throw new Error('upsert failed')
+                }
                 return {}
               },
               // audit() awaits values(...) directly without chaining onConflictDoUpdate
@@ -94,6 +98,7 @@ beforeEach(() => {
   calls.deletes = []
   selectResult = []
   accountsSelectResult = []
+  shouldRejectAccountsUpsert = false
 })
 
 function auditInserts() {
@@ -199,6 +204,30 @@ describe('verifyOne', () => {
     expect(accountsInsert).toBeTruthy()
     expect((accountsInsert!.values as any).handle).toBe('newfound.brussels')
     expect((accountsInsert!.values as any).seedSource).toBe('verify-fallback')
+  })
+
+  it('still completes verification successfully when the accounts upsert fails', async () => {
+    accountsSelectResult = [] // not indexed yet
+    shouldRejectAccountsUpsert = true // make the upsert throw
+    checkGuards.mockResolvedValue({ ok: true })
+    publicGetProfile.mockResolvedValue({
+      data: { handle: 'failed-upsert.example', displayName: 'Failed Upsert', description: 'bio', avatar: null },
+    })
+    createRecord.mockResolvedValue({ data: { uri: 'at://did:plc:org/app.bsky.graph.verification/rk1', cid: 'x' } })
+
+    // Despite the upsert throwing, verifyOne should still succeed
+    const res = await verifyOne({
+      org: { id: 1, did: 'did:plc:org' },
+      actorDid: 'did:plc:member',
+      subject: { did: 'did:plc:failed' },
+    })
+
+    expect(res.outcome).toBe('verified')
+    // createRecord should have been called (the on-chain verification still happened)
+    expect(createRecord).toHaveBeenCalledTimes(1)
+    const createArgs = createRecord.mock.calls[0][0]
+    expect(createArgs.record.handle).toBe('failed-upsert.example')
+    expect(createArgs.record.displayName).toBe('Failed Upsert')
   })
 
   it('returns outcome error and audits without rethrowing when createRecord throws', async () => {
