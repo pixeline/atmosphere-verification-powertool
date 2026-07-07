@@ -83,4 +83,27 @@ describe('runKeywordSeed', () => {
     expect(dids).toEqual([])
     expect(searchActorsTypeahead).not.toHaveBeenCalled()
   })
+
+  it('isolates a failing keyword so the others still contribute DIDs', async () => {
+    seedRows = [
+      { id: 1, keyword: 'namur', enabled: true },
+      { id: 2, keyword: 'liège', enabled: true },
+      { id: 3, keyword: 'gent', enabled: true },
+    ]
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    searchActorsTypeahead
+      .mockResolvedValueOnce({ data: { actors: [{ did: 'did:plc:a' }] } })
+      .mockRejectedValueOnce(new Error('Output/actors/21/handle must be a valid handle'))
+      .mockResolvedValueOnce({ data: { actors: [{ did: 'did:plc:c' }] } })
+
+    const dids = await runKeywordSeed({} as any)
+
+    expect(searchActorsTypeahead).toHaveBeenCalledTimes(3)
+    expect(dids.sort()).toEqual(['did:plc:a', 'did:plc:c'])
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('keyword "liège" failed'),
+      expect.any(Error)
+    )
+    consoleErrorSpy.mockRestore()
+  })
 })
