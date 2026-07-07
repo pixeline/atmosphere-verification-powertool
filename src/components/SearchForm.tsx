@@ -13,6 +13,7 @@ export type SearchFilters = {
   customDomainOnly: boolean
   followedByVerified: boolean
   verifiedByAnyOf: string[]
+  liveNetwork: boolean
 }
 
 export function SearchForm({
@@ -26,6 +27,15 @@ export function SearchForm({
   const [customDomainOnly, setCustomDomainOnly] = useState(false)
   const [followedByVerified, setFollowedByVerified] = useState(false)
   const [verifiedByAnyOf, setVerifiedByAnyOf] = useState<string[]>([])
+  const [liveNetwork, setLiveNetwork] = useState(false)
+
+  function toggleLiveNetwork(checked: boolean) {
+    setLiveNetwork(checked)
+    if (checked) {
+      setFollowedByVerified(false)
+      setVerifiedByAnyOf([])
+    }
+  }
 
   return (
     <Card>
@@ -37,7 +47,7 @@ export function SearchForm({
           className="flex flex-col gap-5"
           onSubmit={(e) => {
             e.preventDefault()
-            onSearch({ text, customDomainOnly, followedByVerified, verifiedByAnyOf })
+            onSearch({ text, customDomainOnly, followedByVerified, verifiedByAnyOf, liveNetwork })
           }}
         >
           <div className="flex flex-col gap-2">
@@ -58,6 +68,7 @@ export function SearchForm({
               <Checkbox
                 id="search-followed-by-verified"
                 checked={followedByVerified}
+                disabled={liveNetwork}
                 onCheckedChange={(checked) => setFollowedByVerified(checked === true)}
               />
               Followed by a verified account
@@ -70,6 +81,8 @@ export function SearchForm({
               <Label key={tv.did} className="flex items-center gap-2">
                 <Checkbox
                   id={`tv-${tv.did}`}
+                  checked={verifiedByAnyOf.includes(tv.did)}
+                  disabled={liveNetwork}
                   onCheckedChange={(checked) =>
                     setVerifiedByAnyOf((prev) =>
                       checked === true ? [...prev, tv.did] : prev.filter((d) => d !== tv.did)
@@ -80,6 +93,20 @@ export function SearchForm({
               </Label>
             ))}
           </fieldset>
+
+          <div className="flex flex-col gap-1">
+            <Label className="flex items-center gap-2">
+              <Checkbox
+                id="search-live-network"
+                checked={liveNetwork}
+                onCheckedChange={(checked) => toggleLiveNetwork(checked === true)}
+              />
+              Search the live network too
+            </Label>
+            <p className="pl-6 text-xs text-muted-foreground">
+              Requires text above. Only matches text/domain — verified-by filters don&apos;t apply live.
+            </p>
+          </div>
 
           <Button type="submit" className="self-start">
             Search
