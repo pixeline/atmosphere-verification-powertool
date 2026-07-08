@@ -27,10 +27,14 @@ export function SettingsView({
 
   async function addKeyword() {
     if (!newKeyword.trim()) return
-    await fetch('/vidi/api/crawl-seeds', {
+    const res = await fetch('/vidi/api/crawl-seeds', {
       method: 'POST',
       body: JSON.stringify({ orgId, keyword: newKeyword.trim() }),
     })
+    if (!res.ok) {
+      toast.error('Could not add keyword')
+      return
+    }
     setSeeds((prev) => {
       const existing = prev.find((s) => s.keyword === newKeyword.trim())
       if (existing) return prev.map((s) => (s.keyword === newKeyword.trim() ? { ...s, enabled: true } : s))
@@ -40,17 +44,25 @@ export function SettingsView({
   }
 
   async function toggle(keyword: string, enabled: boolean) {
-    await fetch('/vidi/api/crawl-seeds', {
+    const res = await fetch('/vidi/api/crawl-seeds', {
       method: 'PATCH',
       body: JSON.stringify({ orgId, keyword, enabled }),
     })
+    if (!res.ok) {
+      toast.error('Could not update keyword')
+      return
+    }
     setSeeds((prev) => prev.map((s) => (s.keyword === keyword ? { ...s, enabled } : s)))
   }
 
   async function runCrawlNow() {
     setRunning(true)
     try {
-      await fetch('/vidi/api/crawl/run', { method: 'POST', body: JSON.stringify({ orgId }) })
+      const res = await fetch('/vidi/api/crawl/run', { method: 'POST', body: JSON.stringify({ orgId }) })
+      if (!res.ok) {
+        toast.error('Could not start crawl')
+        return
+      }
       toast.success('Crawl started — it will run in the background.')
     } finally {
       setRunning(false)
