@@ -109,12 +109,16 @@ after hydration:
    window on a transient failure.
 
 `AccountCard` renders a compact signals line: `N following · N followers ·
-Active {relative time}` (e.g. "Active 3 days ago"), or "Active date unknown"
-when `last_active_at` is null. No date-formatting library is added (none is
-currently a dependency) — a small hand-rolled relative-time helper (days/
-weeks/months buckets) is enough for this one display, consistent with this
-project's existing preference for plain, dependency-free implementations
-where the need is simple. Both the search route and (after Part 1) the
+Active within {bucket}` — bucketed, not exact relative time, using the same
+shared threshold list as the Part 4 filter (see below): the smallest bucket
+`last_active_at` fits into, e.g. "Active within 7 days" for someone who
+posted 3 days ago, "Active within 3 months" for someone who posted 45 days
+ago. Beyond the largest bucket (6 months), the card shows "Active over 6
+months ago"; when `last_active_at` is null, it shows "Activity unknown". No
+date-formatting library is added (none is currently a dependency, and this
+project's convention is to avoid one for a need this simple) — a small
+shared helper function buckets a timestamp against the threshold list below.
+Both the search route and (after Part 1) the
 backlog route already `SELECT *` (or equivalent) from `accounts`, so these
 new columns flow through to the client with no route changes beyond
 confirming the select isn't column-limited.
@@ -125,11 +129,17 @@ confirming the select isn't column-limited.
 
 ### What it does
 
-A new segmented control next to the existing "Search in" scope toggle:
-**Active within: 7 days / 30 days / 90 days / Any time** (default: Any
-time). Maps to a new `SearchFilters.activeWithinDays: number | null` field.
-`queryBuilder.buildConditions` adds a
-`gte(accounts.lastActiveAt, now() - interval)` condition when set. Only
+A new horizontal radio-style segmented control (matching the existing
+"Harvested accounts / Live network" toggle's visual pattern) next to the
+"Search in" scope toggle: **Active within: 7 days / 2 weeks / 1 month / 3
+months / 6 months / Any time** (default: Any time). These six options are
+defined once as a shared, ordered threshold list (`ACTIVITY_BUCKETS`, each
+entry `{label, days}`) and reused by both this filter and Part 3's card
+display bucketing, so the two are always in sync by construction — the
+same list is imported in both places rather than duplicated. Maps to a new
+`SearchFilters.activeWithinDays: number | null` field (the selected bucket's
+`days` value, or `null` for "Any time"). `queryBuilder.buildConditions` adds
+a `gte(accounts.lastActiveAt, now() - interval)` condition when set. Only
 applies to the local (harvested-accounts) search path — like "Verified by"
 and "Followed by a verified account", this is structurally a local-index-only
 signal (live network results have no `last_active_at` since they aren't
@@ -177,6 +187,10 @@ accounts while searching for new candidates).
 - `SearchForm`: timeframe control disables/clears with live-network scope
   like the existing two graph filters; exclude-verified checkbox defaults to
   checked.
+- Shared `ACTIVITY_BUCKETS` list/bucketing helper: unit-tested directly
+  (boundary values — exactly 7 days ago falls in the "7 days" bucket, one
+  second past 6 months falls into the "over 6 months" catch-all, null input
+  produces "unknown").
 
 ## Out of scope / YAGNI
 
