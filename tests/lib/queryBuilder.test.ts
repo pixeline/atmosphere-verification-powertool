@@ -9,4 +9,22 @@ describe('buildConditions', () => {
   it('is empty when no filters set', () => {
     expect(buildConditions({})).toHaveLength(0)
   })
+
+  it('adds a condition when activeWithinDays is set', () => {
+    expect(buildConditions({ activeWithinDays: 30 })).toHaveLength(1)
+  })
+  it('adds no condition when activeWithinDays is null or absent', () => {
+    expect(buildConditions({ activeWithinDays: null })).toHaveLength(0)
+    expect(buildConditions({})).toHaveLength(0)
+  })
+
+  it('adds a condition when excludeVerifiedByUs is set and a current org DID is provided', () => {
+    expect(buildConditions({ excludeVerifiedByUs: true }, 'did:plc:ourorg')).toHaveLength(1)
+  })
+  it('adds no condition when excludeVerifiedByUs is set but no current org DID is provided', () => {
+    expect(buildConditions({ excludeVerifiedByUs: true }, null)).toHaveLength(0)
+  })
+  it('adds no condition when excludeVerifiedByUs is false, even with a current org DID', () => {
+    expect(buildConditions({ excludeVerifiedByUs: false }, 'did:plc:ourorg')).toHaveLength(0)
+  })
 })
