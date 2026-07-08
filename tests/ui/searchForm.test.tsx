@@ -8,15 +8,22 @@ import { SearchForm } from '../../src/components/SearchForm'
 afterEach(cleanup)
 
 describe('SearchForm', () => {
-  it('renders all four filter controls', () => {
+  it('renders the primary search field, filter controls, and the search-scope toggle', () => {
     render(<SearchForm trustedVerifiers={[{ did: 'did:plc:tv', handle: 'france-atmosphe.re' }]} onSearch={vi.fn()} />)
-    expect(screen.getByLabelText(/text in bio or handle/i)).toBeTruthy()
-    expect(screen.getByRole('checkbox', { name: /handle is a domain/i })).toBeTruthy()
+    expect(screen.getByLabelText(/search in bio or handle/i)).toBeTruthy()
+    expect(screen.getByRole('checkbox', { name: /only domain handles/i })).toBeTruthy()
     expect(screen.getByRole('checkbox', { name: /followed by a verified account/i })).toBeTruthy()
     expect(screen.getByText(/france-atmosphe\.re/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /harvested accounts/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^live network$/i })).toBeTruthy()
   })
 
-  it('disables and clears the verified-by and followed-by-verified controls when live network is checked', () => {
+  it('hides the "Verified by" filter entirely when there are no trusted verifiers configured', () => {
+    render(<SearchForm trustedVerifiers={[]} onSearch={vi.fn()} />)
+    expect(screen.queryByText(/verified by/i)).toBeNull()
+  })
+
+  it('disables and clears the verified-by and followed-by-verified controls when the live network scope is selected', () => {
     const onSearch = vi.fn()
     render(<SearchForm trustedVerifiers={[{ did: 'did:plc:tv', handle: 'tv.example' }]} onSearch={onSearch} />)
 
@@ -27,12 +34,36 @@ describe('SearchForm', () => {
     expect(followedCheckbox.getAttribute('aria-checked')).toBe('true')
     expect(tvCheckbox.getAttribute('aria-checked')).toBe('true')
 
-    const liveCheckbox = screen.getByRole('checkbox', { name: /search the live network/i })
-    fireEvent.click(liveCheckbox)
+    fireEvent.click(screen.getByRole('button', { name: /^live network$/i }))
 
     expect(followedCheckbox.getAttribute('aria-checked')).toBe('false')
     expect(followedCheckbox.getAttribute('aria-disabled')).toBe('true')
     expect(tvCheckbox.getAttribute('aria-checked')).toBe('false')
     expect(tvCheckbox.getAttribute('aria-disabled')).toBe('true')
+  })
+
+  it('re-enables verified-by controls when switching back to harvested accounts', () => {
+    render(<SearchForm trustedVerifiers={[{ did: 'did:plc:tv', handle: 'tv.example' }]} onSearch={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /^live network$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /harvested accounts/i }))
+
+    const followedCheckbox = screen.getByRole('checkbox', { name: /followed by a verified account/i })
+    expect(followedCheckbox.getAttribute('aria-disabled')).not.toBe('true')
+    fireEvent.click(followedCheckbox)
+    expect(followedCheckbox.getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('reflects the selected scope via aria-pressed on the toggle buttons', () => {
+    render(<SearchForm trustedVerifiers={[]} onSearch={vi.fn()} />)
+    const harvested = screen.getByRole('button', { name: /harvested accounts/i })
+    const live = screen.getByRole('button', { name: /^live network$/i })
+    expect(harvested.getAttribute('aria-pressed')).toBe('true')
+    expect(live.getAttribute('aria-pressed')).toBe('false')
+
+    fireEvent.click(live)
+
+    expect(harvested.getAttribute('aria-pressed')).toBe('false')
+    expect(live.getAttribute('aria-pressed')).toBe('true')
   })
 })

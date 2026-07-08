@@ -29,9 +29,9 @@ export function SearchForm({
   const [verifiedByAnyOf, setVerifiedByAnyOf] = useState<string[]>([])
   const [liveNetwork, setLiveNetwork] = useState(false)
 
-  function toggleLiveNetwork(checked: boolean) {
-    setLiveNetwork(checked)
-    if (checked) {
+  function setScope(live: boolean) {
+    setLiveNetwork(live)
+    if (live) {
       setFollowedByVerified(false)
       setVerifiedByAnyOf([])
     }
@@ -40,7 +40,7 @@ export function SearchForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Filters</CardTitle>
+        <CardTitle>Search</CardTitle>
       </CardHeader>
       <CardContent>
         <form
@@ -51,18 +51,19 @@ export function SearchForm({
           }}
         >
           <div className="flex flex-col gap-2">
-            <Label htmlFor="search-text">Text in bio or handle</Label>
+            <Label htmlFor="search-text">Search in bio or handle</Label>
             <Input id="search-text" value={text} onChange={(e) => setText(e.target.value)} />
           </div>
 
           <div className="flex flex-col gap-3">
+            <p className="text-sm font-medium">Filters</p>
             <Label className="flex items-center gap-2">
               <Checkbox
                 id="search-custom-domain"
                 checked={customDomainOnly}
                 onCheckedChange={(checked) => setCustomDomainOnly(checked === true)}
               />
-              Handle is a domain
+              Only domain handles (e.g. lalibre.be)
             </Label>
             <Label className="flex items-center gap-2">
               <Checkbox
@@ -73,39 +74,55 @@ export function SearchForm({
               />
               Followed by a verified account
             </Label>
+            {trustedVerifiers.length > 0 && (
+              <fieldset className="flex flex-col gap-3 pl-6">
+                <legend className="mb-1 text-sm font-medium">Verified by</legend>
+                {trustedVerifiers.map((tv) => (
+                  <Label key={tv.did} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`tv-${tv.did}`}
+                      checked={verifiedByAnyOf.includes(tv.did)}
+                      disabled={liveNetwork}
+                      onCheckedChange={(checked) =>
+                        setVerifiedByAnyOf((prev) =>
+                          checked === true ? [...prev, tv.did] : prev.filter((d) => d !== tv.did)
+                        )
+                      }
+                    />
+                    {tv.handle}
+                  </Label>
+                ))}
+              </fieldset>
+            )}
           </div>
 
-          <fieldset className="flex flex-col gap-3">
-            <legend className="mb-1 text-sm font-medium">Verified by</legend>
-            {trustedVerifiers.map((tv) => (
-              <Label key={tv.did} className="flex items-center gap-2">
-                <Checkbox
-                  id={`tv-${tv.did}`}
-                  checked={verifiedByAnyOf.includes(tv.did)}
-                  disabled={liveNetwork}
-                  onCheckedChange={(checked) =>
-                    setVerifiedByAnyOf((prev) =>
-                      checked === true ? [...prev, tv.did] : prev.filter((d) => d !== tv.did)
-                    )
-                  }
-                />
-                {tv.handle}
-              </Label>
-            ))}
-          </fieldset>
-
-          <div className="flex flex-col gap-1">
-            <Label className="flex items-center gap-2">
-              <Checkbox
-                id="search-live-network"
-                checked={liveNetwork}
-                onCheckedChange={(checked) => toggleLiveNetwork(checked === true)}
-              />
-              Search the live network too
-            </Label>
-            <p className="pl-6 text-xs text-muted-foreground">
-              Requires text above. Only matches text/domain — verified-by filters don&apos;t apply live.
-            </p>
+          <div className="flex flex-col gap-2">
+            <Label>Search in</Label>
+            <div role="group" aria-label="Search scope" className="inline-flex w-fit gap-1 rounded-lg border border-border p-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={liveNetwork ? 'ghost' : 'default'}
+                aria-pressed={!liveNetwork}
+                onClick={() => setScope(false)}
+              >
+                Harvested accounts
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={liveNetwork ? 'default' : 'ghost'}
+                aria-pressed={liveNetwork}
+                onClick={() => setScope(true)}
+              >
+                Live network
+              </Button>
+            </div>
+            {liveNetwork && (
+              <p className="text-xs text-muted-foreground">
+                Requires text above. Only matches text/domain — verified-by filters don&apos;t apply live.
+              </p>
+            )}
           </div>
 
           <Button type="submit" className="self-start">
