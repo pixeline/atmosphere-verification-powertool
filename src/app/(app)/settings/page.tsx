@@ -23,6 +23,15 @@ export function SettingsView({
   const [newKeyword, setNewKeyword] = useState('')
   const [running, setRunning] = useState(false)
 
+  // SettingsPage mounts this component as soon as org context resolves, but
+  // its crawl-seeds fetch is still in flight at that point — seeds always
+  // starts empty and the real list arrives a moment later via a prop update.
+  // useState's initializer only runs once, so without this effect that later
+  // update would be silently dropped and the list would stay empty forever.
+  useEffect(() => {
+    setSeeds(initialSeeds)
+  }, [initialSeeds])
+
   if (role !== 'owner') return null
 
   async function addKeyword() {
@@ -117,9 +126,15 @@ export default function SettingsPage() {
   useEffect(() => {
     if (orgId && role === 'owner') {
       fetch(`/vidi/api/crawl-seeds?orgId=${orgId}`)
-        .then((r) => r.json())
-        .then((d) => setSeeds(d.seeds ?? []))
-        .catch(() => {})
+        .then(async (r) => {
+          if (!r.ok) {
+            toast.error('Could not load crawl keywords')
+            return
+          }
+          const d = await r.json()
+          setSeeds(d.seeds ?? [])
+        })
+        .catch(() => toast.error('Could not load crawl keywords'))
     }
   }, [orgId, role])
 
