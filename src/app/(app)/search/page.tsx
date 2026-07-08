@@ -64,14 +64,10 @@ export default function SearchPage() {
         body: JSON.stringify({
           orgId,
           subjectDid: a.did,
-          ...(a.indexed === false
-            ? {
-                handle: a.handle,
-                displayName: a.displayName,
-                description: a.description,
-                isCustomDomain: a.isCustomDomain,
-              }
-            : {}),
+          // `handle` is only a hint to the backlog route that this subject
+          // isn't indexed yet — the server re-resolves identity itself
+          // rather than trusting client-supplied profile fields.
+          ...(a.indexed === false ? { handle: a.handle } : {}),
         }),
       })
     }

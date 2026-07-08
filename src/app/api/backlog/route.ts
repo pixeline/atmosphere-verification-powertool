@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../../../db/client'
-import { backlogItems } from '../../../db/schema'
+import { accounts, backlogItems } from '../../../db/schema'
 import { getActor } from '../../../lib/authz/session'
 import { assertActiveMember, AuthzError } from '../../../lib/authz/membership'
 import { upsertAccountRow } from '../../../crawler/hydrate'
 import { isCustomDomain } from '../../../lib/domain/handleClassifier'
+import { getPublicAppViewAgent } from '../../../lib/atproto/publicAgent'
 
 function guard<T>(fn: () => Promise<T>) {
   return fn().catch((e) => {
@@ -27,21 +28,31 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return guard(async () => {
     const actor = await getActor(); if (!actor) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
-    const { orgId, subjectDid, note, handle, displayName, description, isCustomDomain: isDomain } = await req.json()
+    const { orgId, subjectDid, note, handle } = await req.json()
     await assertActiveMember(actor.did, orgId)
     if (handle) {
-      // Best-effort cache write — must never block adding to the backlog,
-      // the same reasoning applied to verifyService's live-fallback upsert.
+      // `handle` presence is only a client hint that this subject isn't
+      // indexed yet (a live-search result) — its VALUE is never trusted.
+      // Re-resolving from the network (mirroring verifyService's identity
+      // resolution) prevents an active member from poisoning another DID's
+      // cached handle/displayName, which verifyService treats as
+      // authoritative for on-chain verification records. Skipped entirely
+      // if the subject is already indexed, so this path only ever fills a
+      // gap — it never overwrites existing account data.
       try {
-        await upsertAccountRow({
-          did: subjectDid,
-          handle,
-          displayName: displayName ?? null,
-          description: description ?? null,
-          avatar: null,
-          isCustomDomain: isDomain ?? isCustomDomain(handle),
-          seedSource: 'backlog',
-        })
+        const existing = await db.select().from(accounts).where(eq(accounts.did, subjectDid))
+        if (!existing[0]) {
+          const prof = await getPublicAppViewAgent().getProfile({ actor: subjectDid })
+          await upsertAccountRow({
+            did: subjectDid,
+            handle: prof.data.handle,
+            displayName: prof.data.displayName ?? null,
+            description: prof.data.description ?? null,
+            avatar: prof.data.avatar ?? null,
+            isCustomDomain: isCustomDomain(prof.data.handle),
+            seedSource: 'backlog',
+          })
+        }
       } catch (e) {
         console.error('backlog: failed to upsert account row', e)
       }
