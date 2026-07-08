@@ -2,11 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
 import MembersPage, { MembersView } from '../../src/app/(app)/members/page'
 
+const toastError = vi.fn()
+vi.mock('sonner', () => ({ toast: { error: (...a: unknown[]) => toastError(...a), success: vi.fn() } }))
+
 afterEach(() => {
   cleanup()
 })
 
 describe('MembersView', () => {
+  beforeEach(() => {
+    toastError.mockClear()
+  })
+
   it('hides invite form for helpers', () => {
     render(<MembersView role="helper" members={[]} orgId={1} />)
     expect(screen.queryByText(/invite helper/i)).toBeNull()
@@ -14,6 +21,21 @@ describe('MembersView', () => {
   it('shows invite form for owners', () => {
     render(<MembersView role="owner" members={[]} orgId={1} />)
     expect(screen.getByText(/invite helper/i)).toBeTruthy()
+  })
+
+  it('renders the invite form above the members list', () => {
+    render(
+      <MembersView
+        role="owner"
+        members={[{ memberDid: 'did:plc:x', handle: 'x.bsky.social', role: 'helper' }]}
+        orgId={1}
+      />
+    )
+    const inviteInput = screen.getByPlaceholderText('handle')
+    const teamHeading = screen.getByText(/^team$/i)
+    // compareDocumentPosition bit 4 (DOCUMENT_POSITION_FOLLOWING) means
+    // `teamHeading` comes after `inviteInput` in the DOM.
+    expect(inviteInput.compareDocumentPosition(teamHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
 
@@ -135,5 +157,25 @@ describe('MembersPage loading fallback', () => {
 
     // Once the context fetch resolves, the eternal "Loading…" must be gone.
     await waitFor(() => expect(screen.queryByText(/loading/i)).toBeNull())
+  })
+
+  it('surfaces an error toast instead of silently showing an empty list when the members fetch fails', async () => {
+    toastError.mockClear()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (String(url).includes('/org/context')) {
+          return { status: 200, json: async () => ({ orgId: 1, role: 'owner', isAllowlisted: true, handle: 'x' }) }
+        }
+        if (String(url).includes('/api/members')) {
+          return { ok: false, json: async () => ({}) }
+        }
+        return { ok: true, json: async () => ({}) }
+      }) as any
+    )
+
+    render(<MembersPage />)
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledTimes(1))
   })
 })

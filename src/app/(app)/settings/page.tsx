@@ -1,9 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useOrg } from '@/lib/hooks/useOrg'
@@ -90,24 +91,33 @@ export function SettingsView({
           <CardTitle>Crawl Keywords</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <ul className="flex flex-col gap-2">
-            {seeds.map((s) => (
-              <li key={s.id} className="flex items-center gap-2">
-                <Checkbox
-                  id={`seed-${s.id}`}
-                  checked={s.enabled}
-                  onCheckedChange={(checked) => toggle(s.keyword, checked === true)}
-                />
-                <Label htmlFor={`seed-${s.id}`}>{s.keyword}</Label>
-              </li>
-            ))}
-          </ul>
-          <div className="flex items-end gap-2">
+          <form
+            className="flex items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              addKeyword()
+            }}
+          >
             <div className="flex flex-1 flex-col gap-1">
               <Label htmlFor="new-keyword">Add keyword</Label>
               <Input id="new-keyword" value={newKeyword} onChange={(e) => setNewKeyword(e.target.value)} />
             </div>
-            <Button onClick={addKeyword}>Add</Button>
+            <Button type="submit">Add</Button>
+          </form>
+          <div className="flex flex-wrap gap-2">
+            {seeds.map((s) => (
+              <Badge
+                key={s.id}
+                variant={s.enabled ? 'default' : 'outline'}
+                render={<button type="button" />}
+                aria-pressed={s.enabled}
+                onClick={() => toggle(s.keyword, !s.enabled)}
+                className="cursor-pointer gap-1"
+              >
+                {s.keyword}
+                {s.enabled ? <X className="size-3" /> : <Plus className="size-3" />}
+              </Badge>
+            ))}
           </div>
         </CardContent>
       </Card>

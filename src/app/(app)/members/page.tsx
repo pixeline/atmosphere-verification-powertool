@@ -117,46 +117,6 @@ export function MembersView({ role, members, orgId }: { role: string; members: M
         <p className="text-muted-foreground">People who can verify accounts for this organization.</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Team</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {members.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No members yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Handle</TableHead>
-                  <TableHead>Role</TableHead>
-                  {role === 'owner' && <TableHead className="text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members.map((m) => (
-                  <TableRow key={m.memberDid}>
-                    <TableCell>{m.handle}</TableCell>
-                    <TableCell>
-                      <Badge variant={m.role === 'owner' ? 'default' : 'secondary'}>{m.role}</Badge>
-                    </TableCell>
-                    {role === 'owner' && (
-                      <TableCell className="text-right">
-                        {m.role !== 'owner' && (
-                          <Button size="sm" variant="destructive" onClick={() => revoke(m.memberDid)}>
-                            Revoke
-                          </Button>
-                        )}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
       {role === 'owner' && (
         <Card className="overflow-visible">
           <CardHeader>
@@ -245,6 +205,46 @@ export function MembersView({ role, members, orgId }: { role: string; members: M
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Team</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {members.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No members yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Handle</TableHead>
+                  <TableHead>Role</TableHead>
+                  {role === 'owner' && <TableHead className="text-right">Actions</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.map((m) => (
+                  <TableRow key={m.memberDid}>
+                    <TableCell>{m.handle}</TableCell>
+                    <TableCell>
+                      <Badge variant={m.role === 'owner' ? 'default' : 'secondary'}>{m.role}</Badge>
+                    </TableCell>
+                    {role === 'owner' && (
+                      <TableCell className="text-right">
+                        {m.role !== 'owner' && (
+                          <Button size="sm" variant="destructive" onClick={() => revoke(m.memberDid)}>
+                            Revoke
+                          </Button>
+                        )}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -256,9 +256,15 @@ export default function MembersPage() {
   useEffect(() => {
     if (orgId) {
       fetch(`/vidi/api/members?orgId=${orgId}`)
-        .then((r) => r.json())
-        .then((d) => setMembers(d.members ?? []))
-        .catch(() => {})
+        .then(async (r) => {
+          if (!r.ok) {
+            toast.error('Could not load members')
+            return
+          }
+          const d = await r.json()
+          setMembers(d.members ?? [])
+        })
+        .catch(() => toast.error('Could not load members'))
     }
   }, [orgId])
 
