@@ -31,7 +31,7 @@ function ActorIdentity({ handle }: { handle: string | null }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { orgId, role, isAllowlisted, handle, authenticated, loading, refresh } = useOrg()
+  const { orgId, role, isAllowlisted, handle, authenticated, loading, verifiedCount, refresh } = useOrg()
   const navLinks = role === 'owner' ? [...BASE_NAV_LINKS, { href: '/settings', label: 'Settings' }] : BASE_NAV_LINKS
 
   async function signOut() {
@@ -45,9 +45,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col">
       <header className="border-b bg-background">
         <div className="mx-auto flex max-w-5xl items-center gap-6 px-4 py-3">
-          <Link href="/search" className="text-lg font-semibold tracking-tight">
-            Vidi
-          </Link>
+          <div className="flex items-baseline gap-2">
+            <Link href="/search" className="text-lg font-semibold tracking-tight">
+              Vidi
+            </Link>
+            {verifiedCount != null && (
+              <span className="text-sm text-muted-foreground">{verifiedCount} verified</span>
+            )}
+          </div>
           <nav className="flex items-center gap-4">
             {navLinks.map((link) => (
               <Link

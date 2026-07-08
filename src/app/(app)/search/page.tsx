@@ -5,6 +5,7 @@ import { SearchForm, type SearchFilters } from '@/components/SearchForm'
 import { AccountCard } from '@/components/AccountCard'
 import { Button } from '@/components/ui/button'
 import { useOrg } from '@/lib/hooks/useOrg'
+import { notifyVerifiedCountChanged } from '@/lib/verifiedCountBus'
 
 type TV = { did: string; handle: string }
 type Account = {
@@ -53,6 +54,7 @@ export default function SearchPage() {
       toast.error('Verification failed')
       return
     }
+    notifyVerifiedCountChanged()
     toast.success(`Verified ${subjects.length} account${subjects.length === 1 ? '' : 's'}`)
   }
 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { count, eq } from 'drizzle-orm'
 import { db } from '../../../../db/client'
-import { members, orgs } from '../../../../db/schema'
+import { accountVerifications, members, orgs } from '../../../../db/schema'
 import { getActor } from '../../../../lib/authz/session'
 import { isAllowlisted } from '../../../../lib/allowlist'
 
@@ -15,14 +15,19 @@ export async function GET() {
   const allowlisted = await isAllowlisted(actor.did)
 
   let handle: string | null = null
+  let verifiedCount: number | null = null
   if (active) {
-    if (active.role === 'owner') {
-      // An owner's display identity is the org's own handle.
-      const orgRows = await db.select().from(orgs).where(eq(orgs.id, active.orgId))
-      handle = orgRows[0]?.handle ?? active.handle ?? null
-    } else {
-      // A helper's handle is captured at invite time on the membership row.
-      handle = active.handle ?? null
+    const orgRows = await db.select().from(orgs).where(eq(orgs.id, active.orgId))
+    const org = orgRows[0]
+    // An owner's display identity is the org's own handle; a helper's handle
+    // is captured at invite time on the membership row.
+    handle = active.role === 'owner' ? (org?.handle ?? active.handle ?? null) : (active.handle ?? null)
+    if (org) {
+      const countRows = await db
+        .select({ value: count() })
+        .from(accountVerifications)
+        .where(eq(accountVerifications.verifierDid, org.did))
+      verifiedCount = countRows[0]?.value ?? 0
     }
   }
 
@@ -31,5 +36,6 @@ export async function GET() {
     role: active?.role ?? null,
     isAllowlisted: allowlisted,
     handle,
+    verifiedCount,
   })
 }

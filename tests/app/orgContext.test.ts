@@ -6,19 +6,28 @@ const isAllowlisted = vi.fn()
 vi.mock('../../src/lib/authz/session', () => ({ getActor: () => getActor() }))
 vi.mock('../../src/lib/allowlist', () => ({ isAllowlisted: (did: string) => isAllowlisted(did) }))
 
-// Distinguish the members select from the orgs select by a sentinel field on
-// the mocked table object passed to `.from()`.
+// Distinguish the members select from the orgs/accountVerifications selects
+// by a sentinel field on the mocked table object passed to `.from()`.
 vi.mock('../../src/db/schema', () => ({
   members: { __t: 'members' } as any,
   orgs: { __t: 'orgs' } as any,
+  accountVerifications: { __t: 'accountVerifications' } as any,
 }))
 
-const rowsHolder = vi.hoisted(() => ({ memberRows: [] as any[], orgRows: [] as any[] }))
+const rowsHolder = vi.hoisted(() => ({
+  memberRows: [] as any[],
+  orgRows: [] as any[],
+  verificationCountRows: [] as any[],
+}))
 vi.mock('../../src/db/client', () => ({
   db: {
     select: () => ({
       from: (table: any) => ({
-        where: async () => (table?.__t === 'orgs' ? rowsHolder.orgRows : rowsHolder.memberRows),
+        where: async () => {
+          if (table?.__t === 'orgs') return rowsHolder.orgRows
+          if (table?.__t === 'accountVerifications') return rowsHolder.verificationCountRows
+          return rowsHolder.memberRows
+        },
       }),
     }),
   },
@@ -32,6 +41,7 @@ describe('GET /api/org/context', () => {
     isAllowlisted.mockReset()
     rowsHolder.memberRows = []
     rowsHolder.orgRows = []
+    rowsHolder.verificationCountRows = []
   })
 
   it('returns 401 with orgId null when unauthenticated', async () => {
@@ -41,11 +51,12 @@ describe('GET /api/org/context', () => {
     expect(await res.json()).toEqual({ orgId: null })
   })
 
-  it('returns org handle + isAllowlisted for an owner', async () => {
+  it('returns org handle + isAllowlisted + verifiedCount for an owner', async () => {
     getActor.mockResolvedValue({ did: 'did:plc:org' })
     isAllowlisted.mockResolvedValue(true)
     rowsHolder.memberRows = [{ orgId: 7, role: 'owner', status: 'active', handle: 'stale.owner' }]
-    rowsHolder.orgRows = [{ id: 7, handle: 'org.example.com' }]
+    rowsHolder.orgRows = [{ id: 7, did: 'did:plc:org', handle: 'org.example.com' }]
+    rowsHolder.verificationCountRows = [{ value: 42 }]
 
     const res = await GET()
     expect(res.status).toBe(200)
@@ -54,13 +65,16 @@ describe('GET /api/org/context', () => {
       role: 'owner',
       isAllowlisted: true,
       handle: 'org.example.com',
+      verifiedCount: 42,
     })
   })
 
-  it('returns the membership handle for a helper', async () => {
+  it('returns the membership handle and verifiedCount for a helper (scoped to the org, not the role)', async () => {
     getActor.mockResolvedValue({ did: 'did:plc:helper' })
     isAllowlisted.mockResolvedValue(false)
     rowsHolder.memberRows = [{ orgId: 7, role: 'helper', status: 'active', handle: 'pixeline.be' }]
+    rowsHolder.orgRows = [{ id: 7, did: 'did:plc:org', handle: 'org.example.com' }]
+    rowsHolder.verificationCountRows = [{ value: 5 }]
 
     const res = await GET()
     expect(await res.json()).toEqual({
@@ -68,10 +82,11 @@ describe('GET /api/org/context', () => {
       role: 'helper',
       isAllowlisted: false,
       handle: 'pixeline.be',
+      verifiedCount: 5,
     })
   })
 
-  it('returns null orgId/role/handle for an actor with no membership', async () => {
+  it('returns null orgId/role/handle/verifiedCount for an actor with no membership', async () => {
     getActor.mockResolvedValue({ did: 'did:plc:nobody' })
     isAllowlisted.mockResolvedValue(false)
     rowsHolder.memberRows = []
@@ -82,6 +97,7 @@ describe('GET /api/org/context', () => {
       role: null,
       isAllowlisted: false,
       handle: null,
+      verifiedCount: null,
     })
   })
 
