@@ -70,11 +70,18 @@ export function SearchForm({
                 id="search-followed-by-verified"
                 checked={followedByVerified}
                 disabled={liveNetwork}
-                onCheckedChange={(checked) => setFollowedByVerified(checked === true)}
+                onCheckedChange={(checked) => {
+                  const isChecked = checked === true
+                  setFollowedByVerified(isChecked)
+                  // "Verified by" only makes sense — and is only shown — as a
+                  // refinement of this filter, so clear it when hidden rather
+                  // than leaving a stale, invisible filter still applied.
+                  if (!isChecked) setVerifiedByAnyOf([])
+                }}
               />
               Followed by a verified account
             </Label>
-            {trustedVerifiers.length > 0 && (
+            {followedByVerified && trustedVerifiers.length > 0 && (
               <fieldset className="flex flex-col gap-3 pl-6">
                 <legend className="mb-1 text-sm font-medium">Verified by</legend>
                 {trustedVerifiers.map((tv) => (
