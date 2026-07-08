@@ -8,7 +8,7 @@ import { OnboardOrg } from '@/components/OnboardOrg'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-const NAV_LINKS = [
+const BASE_NAV_LINKS = [
   { href: '/search', label: 'Search' },
   { href: '/backlog', label: 'Backlog' },
   { href: '/members', label: 'Members' },
@@ -31,7 +31,8 @@ function ActorIdentity({ handle }: { handle: string | null }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { orgId, isAllowlisted, handle, authenticated, loading, refresh } = useOrg()
+  const { orgId, role, isAllowlisted, handle, authenticated, loading, refresh } = useOrg()
+  const navLinks = role === 'owner' ? [...BASE_NAV_LINKS, { href: '/settings', label: 'Settings' }] : BASE_NAV_LINKS
 
   async function signOut() {
     await fetch('/vidi/api/auth/logout', { method: 'POST' })
@@ -48,7 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             Vidi
           </Link>
           <nav className="flex items-center gap-4">
-            {NAV_LINKS.map((link) => (
+            {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
