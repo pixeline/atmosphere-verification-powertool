@@ -7,6 +7,7 @@ import { crawlVerifications, type VerificationEdge } from './verificationsCrawl'
 import { collectFollowedByVerified } from './followsCrawl'
 import { runKeywordSeed } from './keywordSeed'
 import { hydrateAccounts } from './hydrate'
+import { refreshLastActive } from './refreshLastActive'
 import { validateEnv } from '../lib/env'
 import { isMain } from '../lib/isMain'
 
@@ -73,6 +74,12 @@ export async function runCrawl(service = process.env.MU_APPVIEW_URL ?? 'https://
     await hydrateAccounts(agent, allDids)
   } catch (err) {
     console.error('runCrawl: hydrateAccounts failed', err)
+  }
+
+  try {
+    await refreshLastActive(agent)
+  } catch (err) {
+    console.error('runCrawl: refreshLastActive failed', err)
   }
 
   for (const [did, verifiedFollowers] of followedMap) {
