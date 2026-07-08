@@ -15,6 +15,13 @@
       "when": 1783119371909,
       "tag": "0001_trgm_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783552868009,
+      "tag": "0002_account_activity_signals",
+      "breakpoints": true
     }
   ]
 }

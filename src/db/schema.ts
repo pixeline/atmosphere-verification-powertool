@@ -9,6 +9,10 @@ export const accounts = pgTable('accounts', {
   isCustomDomain: boolean('is_custom_domain').notNull().default(false),
   seedSource: text('seed_source'),
   indexedAt: timestamp('indexed_at', { withTimezone: true }).defaultNow(),
+  followersCount: integer('followers_count'),
+  followsCount: integer('follows_count'),
+  lastActiveAt: timestamp('last_active_at', { withTimezone: true }),
+  lastActiveCheckedAt: timestamp('last_active_checked_at', { withTimezone: true }),
 }, (t) => ({ handleIdx: index('accounts_handle_idx').on(t.handle) }))
 
 export const accountVerifications = pgTable('account_verifications', {
