@@ -20,7 +20,13 @@ export async function POST(req: NextRequest) {
     throw e
   }
 
-  const results = await searchAccounts(filters ?? {})
+  let currentOrgDid: string | null = null
+  if (filters?.excludeVerifiedByUs) {
+    const orgRows = await db.select().from(orgs).where(eq(orgs.id, orgId))
+    currentOrgDid = orgRows[0]?.did ?? null
+  }
+
+  const results = await searchAccounts(filters ?? {}, currentOrgDid)
 
   let liveResults: LiveActor[] = []
   if (filters?.liveNetwork && filters?.text) {

@@ -12,8 +12,12 @@ const searchResults = [
   { did: 'did:plc:plain', handle: 'plain.bsky.social' },
 ]
 
+const searchAccountsCalls: unknown[][] = []
 vi.mock('../../src/lib/search/queryBuilder', () => ({
-  searchAccounts: async () => searchResults,
+  searchAccounts: async (...args: unknown[]) => {
+    searchAccountsCalls.push(args)
+    return searchResults
+  },
 }))
 
 const liveActorsResult: unknown[] = []
@@ -25,6 +29,15 @@ vi.mock('../../src/lib/search/liveSearch', () => ({
 }))
 const liveSearchCalls: unknown[][] = []
 
+// Distinguish the orgs select from the accountVerifications enrichment
+// select by a sentinel field on the mocked table object passed to `.from()`
+// — same pattern already used in tests/app/orgContext.test.ts.
+vi.mock('../../src/db/schema', () => ({
+  accountVerifications: { __t: 'accountVerifications' } as any,
+  trustedVerifiers: { __t: 'trustedVerifiers' } as any,
+  orgs: { __t: 'orgs' } as any,
+}))
+
 // verification rows returned by the enrichment query
 // (accountVerifications LEFT JOIN trustedVerifiers LEFT JOIN orgs)
 let verificationRows: unknown[] = [
@@ -35,17 +48,21 @@ let verificationRows: unknown[] = [
     orgHandle: null,
   },
 ]
+let orgRows: unknown[] = [{ id: 1, did: 'did:plc:ourorg', handle: 'ourorg.example' }]
 
 vi.mock('../../src/db/client', () => ({
   db: {
     select: () => ({
-      from: () => ({
-        leftJoin: () => ({
+      from: (table: any) => {
+        if (table?.__t === 'orgs') return { where: async () => orgRows }
+        return {
           leftJoin: () => ({
-            where: async () => verificationRows,
+            leftJoin: () => ({
+              where: async () => verificationRows,
+            }),
           }),
-        }),
-      }),
+        }
+      },
     }),
   },
 }))
@@ -64,6 +81,8 @@ describe('search route', () => {
         orgHandle: null,
       },
     ]
+    orgRows = [{ id: 1, did: 'did:plc:ourorg', handle: 'ourorg.example' }]
+    searchAccountsCalls.length = 0
   })
 
   it('401 when not logged in', async () => {
@@ -185,15 +204,12 @@ describe('search route', () => {
     const res = await POST(req as any)
     const body = await res.json()
     expect(liveSearchCalls[0]).toEqual(['brussels', 25])
-    // did:plc:verified came from the local mock too -> local (indexed:true) wins, not duplicated
     const verified = body.results.filter((r: any) => r.did === 'did:plc:verified')
     expect(verified).toHaveLength(1)
     expect(verified[0].indexed).toBe(true)
-    // did:plc:live-only only came from live search -> indexed:false
     const liveOnly = body.results.find((r: any) => r.did === 'did:plc:live-only')
     expect(liveOnly.indexed).toBe(false)
     expect(liveOnly.handle).toBe('newfound.brussels')
-    // did:plc:plain came only from local -> indexed:true
     const plain = body.results.find((r: any) => r.did === 'did:plc:plain')
     expect(plain.indexed).toBe(true)
   })
@@ -216,5 +232,27 @@ describe('search route', () => {
     const body = await res.json()
     expect(body.results.find((r: any) => r.did === 'did:plc:live-domain')).toBeTruthy()
     expect(body.results.find((r: any) => r.did === 'did:plc:live-platform')).toBeUndefined()
+  })
+
+  it('resolves and passes the current org DID to searchAccounts when excludeVerifiedByUs is set', async () => {
+    vi.doMock('../../src/lib/authz/session', () => ({ getActor }))
+    const { POST } = await import('../../src/app/api/search/route')
+    const req = new Request('http://x/vidi/api/search', {
+      method: 'POST',
+      body: JSON.stringify({ orgId: 1, filters: { excludeVerifiedByUs: true } }),
+    })
+    await POST(req as any)
+    expect(searchAccountsCalls[0][1]).toBe('did:plc:ourorg')
+  })
+
+  it('passes null as the current org DID when excludeVerifiedByUs is not set (no org lookup needed)', async () => {
+    vi.doMock('../../src/lib/authz/session', () => ({ getActor }))
+    const { POST } = await import('../../src/app/api/search/route')
+    const req = new Request('http://x/vidi/api/search', {
+      method: 'POST',
+      body: JSON.stringify({ orgId: 1, filters: {} }),
+    })
+    await POST(req as any)
+    expect(searchAccountsCalls[0][1]).toBeNull()
   })
 })
