@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { NextRequest } from 'next/server'
 
 vi.mock('../../src/lib/authz/session', () => ({ getActor: async () => ({ did: 'did:plc:a' }) }))
 vi.mock('../../src/lib/authz/membership', () => ({
@@ -8,9 +9,6 @@ vi.mock('../../src/lib/authz/membership', () => ({
   },
 }))
 
-// The backlog route re-resolves identity from the network (mirroring
-// verifyService) rather than trusting client-supplied profile fields — mock
-// @atproto/api so tests can assert THAT this is what supplies the stored handle.
 const publicGetProfile = vi.fn()
 vi.mock('@atproto/api', () => ({
   AtpAgent: class {
@@ -20,15 +18,35 @@ vi.mock('@atproto/api', () => ({
   },
 }))
 
-// Records every insert's values, and lets tests control what `select` returns
-// (an empty array simulates a not-yet-indexed subject). Discriminate inserts
-// by shape rather than Drizzle table identity: an accounts row always has
-// `handle`; a backlogItems row always has `subjectDid` + `status` and never `handle`.
+// Distinguish each table's select by a sentinel field on the mocked table
+// object passed to `.from()` — same pattern already used in
+// tests/app/orgContext.test.ts and tests/api/search.test.ts.
+vi.mock('../../src/db/schema', () => ({
+  accounts: { __t: 'accounts' } as any,
+  backlogItems: { __t: 'backlogItems' } as any,
+  accountVerifications: { __t: 'accountVerifications' } as any,
+  trustedVerifiers: { __t: 'trustedVerifiers' } as any,
+  orgs: { __t: 'orgs' } as any,
+}))
+
 const insertedValues: Record<string, unknown>[] = []
-let selectResult: unknown[] = []
+let selectResult: unknown[] = []       // POST's "is this subject already indexed" check
+let backlogRows: unknown[] = []        // GET's main enriched query (backlogItems LEFT JOIN accounts)
+let verifierRows: unknown[] = []       // GET's verifier enrichment query
+
 vi.mock('../../src/db/client', () => ({
   db: {
-    select: () => ({ from: () => ({ where: async () => selectResult }) }),
+    select: () => ({
+      from: (table: any) => {
+        if (table?.__t === 'backlogItems') {
+          return { leftJoin: () => ({ where: async () => backlogRows }) }
+        }
+        if (table?.__t === 'accountVerifications') {
+          return { leftJoin: () => ({ leftJoin: () => ({ where: async () => verifierRows }) }) }
+        }
+        return { where: async () => selectResult } // accounts
+      },
+    }),
     insert: () => ({
       values: (values: Record<string, unknown>) => {
         insertedValues.push(values)
@@ -38,11 +56,13 @@ vi.mock('../../src/db/client', () => ({
   },
 }))
 
-import { POST } from '../../src/app/api/backlog/route'
+import { GET, POST } from '../../src/app/api/backlog/route'
 
 beforeEach(() => {
   insertedValues.length = 0
   selectResult = []
+  backlogRows = []
+  verifierRows = []
   publicGetProfile.mockReset()
 })
 
@@ -117,5 +137,60 @@ describe('backlog route account upsert', () => {
     expect(accountsInsert).toBeTruthy()
     expect(accountsInsert!.handle).toBe('real-owner.example')
     expect(accountsInsert!.handle).not.toBe('attacker-controlled.example')
+  })
+})
+
+describe('backlog route GET enrichment', () => {
+  it('returns profile fields and verifiers alongside subjectDid/note', async () => {
+    backlogRows = [
+      {
+        subjectDid: 'did:plc:queued',
+        note: 'check this one',
+        handle: 'queued.example',
+        displayName: 'Queued Account',
+        description: 'a bio',
+        isCustomDomain: true,
+        followersCount: 10,
+        followsCount: 5,
+        lastActiveAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]
+    verifierRows = [
+      { subjectDid: 'did:plc:queued', verifierDid: 'did:plc:tv1', tvHandle: 'tv.example', orgHandle: null },
+    ]
+    const req = new NextRequest('http://x/vidi/api/backlog?orgId=1')
+    const res = await GET(req as any)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.items).toHaveLength(1)
+    expect(body.items[0]).toMatchObject({
+      subjectDid: 'did:plc:queued',
+      note: 'check this one',
+      handle: 'queued.example',
+      displayName: 'Queued Account',
+      description: 'a bio',
+      isCustomDomain: true,
+      followersCount: 10,
+      followsCount: 5,
+      lastActiveAt: '2026-01-01T00:00:00.000Z',
+      verifiers: [{ did: 'did:plc:tv1', handle: 'tv.example' }],
+    })
+  })
+
+  it('returns an empty verifiers array for a queued account with no verification row', async () => {
+    backlogRows = [{ subjectDid: 'did:plc:unverified', note: null, handle: 'x.example', displayName: null, description: null, isCustomDomain: false, followersCount: null, followsCount: null, lastActiveAt: null }]
+    verifierRows = []
+    const req = new NextRequest('http://x/vidi/api/backlog?orgId=1')
+    const res = await GET(req as any)
+    const body = await res.json()
+    expect(body.items[0].verifiers).toEqual([])
+  })
+
+  it('returns an empty items array without querying verifiers when the backlog is empty', async () => {
+    backlogRows = []
+    const req = new NextRequest('http://x/vidi/api/backlog?orgId=1')
+    const res = await GET(req as any)
+    const body = await res.json()
+    expect(body.items).toEqual([])
   })
 })

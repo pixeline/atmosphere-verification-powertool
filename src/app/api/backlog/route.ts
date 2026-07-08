@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '../../../db/client'
-import { accounts, backlogItems } from '../../../db/schema'
+import { accounts, accountVerifications, backlogItems, orgs, trustedVerifiers } from '../../../db/schema'
 import { getActor } from '../../../lib/authz/session'
 import { assertActiveMember, AuthzError } from '../../../lib/authz/membership'
 import { upsertAccountRow } from '../../../crawler/hydrate'
@@ -20,8 +20,47 @@ export async function GET(req: NextRequest) {
     const actor = await getActor(); if (!actor) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
     const orgId = Number(req.nextUrl.searchParams.get('orgId'))
     await assertActiveMember(actor.did, orgId)
-    const rows = await db.select().from(backlogItems).where(and(eq(backlogItems.orgId, orgId), eq(backlogItems.status, 'pending')))
-    return NextResponse.json({ items: rows })
+
+    const rows = await db
+      .select({
+        subjectDid: backlogItems.subjectDid,
+        note: backlogItems.note,
+        handle: accounts.handle,
+        displayName: accounts.displayName,
+        description: accounts.description,
+        isCustomDomain: accounts.isCustomDomain,
+        followersCount: accounts.followersCount,
+        followsCount: accounts.followsCount,
+        lastActiveAt: accounts.lastActiveAt,
+      })
+      .from(backlogItems)
+      .leftJoin(accounts, eq(backlogItems.subjectDid, accounts.did))
+      .where(and(eq(backlogItems.orgId, orgId), eq(backlogItems.status, 'pending')))
+
+    const dids = rows.map((r) => r.subjectDid)
+    const verifiersByDid = new Map<string, { did: string; handle: string | null }[]>()
+    if (dids.length) {
+      const verifierRows = await db
+        .select({
+          subjectDid: accountVerifications.subjectDid,
+          verifierDid: accountVerifications.verifierDid,
+          tvHandle: trustedVerifiers.handle,
+          orgHandle: orgs.handle,
+        })
+        .from(accountVerifications)
+        .leftJoin(trustedVerifiers, eq(accountVerifications.verifierDid, trustedVerifiers.did))
+        .leftJoin(orgs, eq(accountVerifications.verifierDid, orgs.did))
+        .where(inArray(accountVerifications.subjectDid, dids))
+
+      for (const row of verifierRows) {
+        const list = verifiersByDid.get(row.subjectDid) ?? []
+        list.push({ did: row.verifierDid, handle: row.tvHandle ?? row.orgHandle ?? null })
+        verifiersByDid.set(row.subjectDid, list)
+      }
+    }
+
+    const items = rows.map((r) => ({ ...r, verifiers: verifiersByDid.get(r.subjectDid) ?? [] }))
+    return NextResponse.json({ items })
   })
 }
 
