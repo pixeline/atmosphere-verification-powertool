@@ -64,6 +64,21 @@ describe('backlog route account upsert', () => {
     expect(backlogInsert).toBeTruthy()
   })
 
+  it('copies followersCount/followsCount from the resolved profile into the upserted accounts row', async () => {
+    publicGetProfile.mockResolvedValue({
+      data: { handle: 'newfound.brussels', displayName: 'New', description: null, avatar: null, followersCount: 8, followsCount: 20 },
+    })
+    const req = new Request('http://x/vidi/api/backlog', {
+      method: 'POST',
+      body: JSON.stringify({ orgId: 1, subjectDid: 'did:plc:live2', handle: 'newfound.brussels' }),
+    })
+    await POST(req as any)
+    const accountsInsert = insertedValues.find((v) => 'handle' in v)
+    expect(accountsInsert).toBeTruthy()
+    expect(accountsInsert!.followersCount).toBe(8)
+    expect(accountsInsert!.followsCount).toBe(20)
+  })
+
   it('does not touch accounts when handle is absent (already-indexed result)', async () => {
     const req = new Request('http://x/vidi/api/backlog', {
       method: 'POST',

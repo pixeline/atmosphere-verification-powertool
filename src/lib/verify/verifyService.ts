@@ -46,6 +46,8 @@ async function resolveSubjectIdentity(did: string): Promise<{ handle: string; di
       avatar: prof.data.avatar ?? null,
       isCustomDomain: isCustomDomain(prof.data.handle),
       seedSource: 'verify-fallback',
+      followersCount: prof.data.followersCount ?? null,
+      followsCount: prof.data.followsCount ?? null,
     })
   } catch (err) {
     console.error(`resolveSubjectIdentity: failed to upsert account ${did}`, err)

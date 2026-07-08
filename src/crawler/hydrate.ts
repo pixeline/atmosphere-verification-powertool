@@ -11,6 +11,8 @@ export type AccountRow = {
   avatar: string | null
   isCustomDomain: boolean
   seedSource: string
+  followersCount: number | null
+  followsCount: number | null
 }
 
 export function toAccountRow(p: AppBskyActorDefs.ProfileViewDetailed, seedSource: string): AccountRow {
@@ -22,6 +24,8 @@ export function toAccountRow(p: AppBskyActorDefs.ProfileViewDetailed, seedSource
     avatar: p.avatar ?? null,
     isCustomDomain: isCustomDomain(p.handle),
     seedSource,
+    followersCount: p.followersCount ?? null,
+    followsCount: p.followsCount ?? null,
   }
 }
 
@@ -35,6 +39,8 @@ export async function upsertAccountRow(row: AccountRow): Promise<void> {
         description: row.description,
         avatar: row.avatar,
         isCustomDomain: row.isCustomDomain,
+        followersCount: row.followersCount,
+        followsCount: row.followsCount,
       },
     })
 }

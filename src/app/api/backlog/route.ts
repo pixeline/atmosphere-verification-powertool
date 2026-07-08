@@ -51,6 +51,8 @@ export async function POST(req: NextRequest) {
             avatar: prof.data.avatar ?? null,
             isCustomDomain: isCustomDomain(prof.data.handle),
             seedSource: 'backlog',
+            followersCount: prof.data.followersCount ?? null,
+            followsCount: prof.data.followsCount ?? null,
           })
         }
       } catch (e) {

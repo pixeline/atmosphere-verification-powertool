@@ -190,6 +190,22 @@ describe('verifyOne', () => {
     expect(createArgs.record.displayName).toBe('From Profile')
   })
 
+  it('copies followersCount/followsCount from the live profile into the upserted accounts row', async () => {
+    accountsSelectResult = []
+    checkGuards.mockResolvedValue({ ok: true })
+    publicGetProfile.mockResolvedValue({
+      data: { handle: 'newfound.brussels', displayName: 'New', followersCount: 15, followsCount: 3 },
+    })
+    createRecord.mockResolvedValue({ data: { uri: 'at://did:plc:org/app.bsky.graph.verification/rk1', cid: 'x' } })
+
+    await verifyOne({ org: { id: 1, did: 'did:plc:org' }, actorDid: 'did:plc:member', subject: { did: 'did:plc:newfound2' } })
+
+    const accountsInsert = calls.inserts.find((i) => (i.values as any)?.did === 'did:plc:newfound2')
+    expect(accountsInsert).toBeTruthy()
+    expect((accountsInsert!.values as any).followersCount).toBe(15)
+    expect((accountsInsert!.values as any).followsCount).toBe(3)
+  })
+
   it('upserts an accounts row when identity resolution falls back to the live profile', async () => {
     accountsSelectResult = [] // not indexed yet
     checkGuards.mockResolvedValue({ ok: true })
