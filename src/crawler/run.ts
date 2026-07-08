@@ -40,7 +40,7 @@ export async function runCrawl(service = process.env.MU_APPVIEW_URL ?? 'https://
 
   let edges: VerificationEdge[] = []
   try {
-    edges = await crawlVerifications(agent, verifierDids)
+    edges = await crawlVerifications(verifierDids)
   } catch (err) {
     console.error('runCrawl: crawlVerifications failed', err)
   }

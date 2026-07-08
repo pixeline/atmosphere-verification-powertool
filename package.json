@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@atproto/api": "^0.20.25",
+    "@atproto/identity": "^0.5.5",
     "@atproto/jwk": "^0.7.3",
     "@atproto/jwk-jose": "^0.2.3",
     "@atproto/oauth-client-node": "^0.4.5",
