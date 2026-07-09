@@ -20,17 +20,17 @@ describe('SearchForm', () => {
   it('hides the "Verified by" filter entirely when there are no trusted verifiers configured', () => {
     render(<SearchForm trustedVerifiers={[]} onSearch={vi.fn()} />)
     fireEvent.click(screen.getByRole('checkbox', { name: /followed by a verified account/i }))
-    expect(screen.queryByText(/verified by/i)).toBeNull()
+    expect(screen.queryByText(/^verified by$/i)).toBeNull()
   })
 
   it('hides "Verified by" until "Followed by a verified account" is checked, even when trusted verifiers exist', () => {
     render(<SearchForm trustedVerifiers={[{ did: 'did:plc:tv', handle: 'france-atmosphe.re' }]} onSearch={vi.fn()} />)
-    expect(screen.queryByText(/verified by/i)).toBeNull()
+    expect(screen.queryByText(/^verified by$/i)).toBeNull()
     expect(screen.queryByText(/france-atmosphe\.re/)).toBeNull()
 
     fireEvent.click(screen.getByRole('checkbox', { name: /followed by a verified account/i }))
 
-    expect(screen.getByText(/verified by/i)).toBeTruthy()
+    expect(screen.getByText(/^verified by$/i)).toBeTruthy()
     expect(screen.getByText(/france-atmosphe\.re/)).toBeTruthy()
   })
 
@@ -89,5 +89,44 @@ describe('SearchForm', () => {
 
     expect(harvested.getAttribute('aria-pressed')).toBe('false')
     expect(live.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('defaults "Hide accounts already verified by us" to checked', () => {
+    render(<SearchForm trustedVerifiers={[]} onSearch={vi.fn()} />)
+    const checkbox = screen.getByRole('checkbox', { name: /hide accounts already verified by us/i })
+    expect(checkbox.getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('includes excludeVerifiedByUs and activeWithinDays in the submitted filters', () => {
+    const onSearch = vi.fn()
+    render(<SearchForm trustedVerifiers={[]} onSearch={onSearch} />)
+    fireEvent.click(screen.getByRole('button', { name: /^search$/i }))
+    expect(onSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ excludeVerifiedByUs: true, activeWithinDays: null })
+    )
+  })
+
+  it('selects an activity bucket and includes it in submitted filters', () => {
+    const onSearch = vi.fn()
+    render(<SearchForm trustedVerifiers={[]} onSearch={onSearch} />)
+    fireEvent.click(screen.getByRole('button', { name: /^1 month$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^search$/i }))
+    expect(onSearch).toHaveBeenCalledWith(expect.objectContaining({ activeWithinDays: 30 }))
+  })
+
+  it('disables and clears the activity-timeframe control when the live network scope is selected', () => {
+    render(<SearchForm trustedVerifiers={[]} onSearch={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /^1 month$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^live network$/i }))
+
+    const oneMonth = screen.getByRole('button', { name: /^1 month$/i }) as HTMLButtonElement
+    expect(oneMonth.getAttribute('aria-pressed')).toBe('false')
+    // A plain (non-composite) Button's `disabled` prop renders the native
+    // `disabled` attribute, not `aria-disabled` — confirmed by direct probe
+    // against this project's Button component; `aria-disabled` only applies
+    // inside a Composite/Toolbar context, which this segmented group is not.
+    expect(oneMonth.disabled).toBe(true)
+    const anyTime = screen.getByRole('button', { name: /^any time$/i })
+    expect(anyTime.getAttribute('aria-pressed')).toBe('true')
   })
 })

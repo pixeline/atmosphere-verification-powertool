@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ACTIVITY_BUCKETS } from '@/lib/activityBuckets'
 
 type TV = { did: string; handle: string }
 
@@ -14,6 +15,8 @@ export type SearchFilters = {
   followedByVerified: boolean
   verifiedByAnyOf: string[]
   liveNetwork: boolean
+  activeWithinDays: number | null
+  excludeVerifiedByUs: boolean
 }
 
 export function SearchForm({
@@ -28,12 +31,15 @@ export function SearchForm({
   const [followedByVerified, setFollowedByVerified] = useState(false)
   const [verifiedByAnyOf, setVerifiedByAnyOf] = useState<string[]>([])
   const [liveNetwork, setLiveNetwork] = useState(false)
+  const [activeWithinDays, setActiveWithinDays] = useState<number | null>(null)
+  const [excludeVerifiedByUs, setExcludeVerifiedByUs] = useState(true)
 
   function setScope(live: boolean) {
     setLiveNetwork(live)
     if (live) {
       setFollowedByVerified(false)
       setVerifiedByAnyOf([])
+      setActiveWithinDays(null)
     }
   }
 
@@ -47,7 +53,15 @@ export function SearchForm({
           className="flex flex-col gap-5"
           onSubmit={(e) => {
             e.preventDefault()
-            onSearch({ text, customDomainOnly, followedByVerified, verifiedByAnyOf, liveNetwork })
+            onSearch({
+              text,
+              customDomainOnly,
+              followedByVerified,
+              verifiedByAnyOf,
+              liveNetwork,
+              activeWithinDays,
+              excludeVerifiedByUs,
+            })
           }}
         >
           <div className="flex flex-col gap-2">
@@ -64,6 +78,14 @@ export function SearchForm({
                 onCheckedChange={(checked) => setCustomDomainOnly(checked === true)}
               />
               Only domain handles (e.g. lalibre.be)
+            </Label>
+            <Label className="flex items-center gap-2">
+              <Checkbox
+                id="search-exclude-verified-by-us"
+                checked={excludeVerifiedByUs}
+                onCheckedChange={(checked) => setExcludeVerifiedByUs(checked === true)}
+              />
+              Hide accounts already verified by us
             </Label>
             <Label className="flex items-center gap-2">
               <Checkbox
@@ -101,6 +123,35 @@ export function SearchForm({
                 ))}
               </fieldset>
             )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Active within</Label>
+            <div role="group" aria-label="Activity timeframe" className="inline-flex w-fit flex-wrap gap-1 rounded-lg border border-border p-1">
+              {ACTIVITY_BUCKETS.map((b) => (
+                <Button
+                  key={b.days}
+                  type="button"
+                  size="sm"
+                  variant={activeWithinDays === b.days ? 'default' : 'ghost'}
+                  aria-pressed={activeWithinDays === b.days}
+                  disabled={liveNetwork}
+                  onClick={() => setActiveWithinDays(b.days)}
+                >
+                  {b.label}
+                </Button>
+              ))}
+              <Button
+                type="button"
+                size="sm"
+                variant={activeWithinDays === null ? 'default' : 'ghost'}
+                aria-pressed={activeWithinDays === null}
+                disabled={liveNetwork}
+                onClick={() => setActiveWithinDays(null)}
+              >
+                Any time
+              </Button>
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">
