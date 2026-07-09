@@ -33,6 +33,7 @@ const insertedValues: Record<string, unknown>[] = []
 let selectResult: unknown[] = []       // POST's "is this subject already indexed" check
 let backlogRows: unknown[] = []        // GET's main enriched query (backlogItems LEFT JOIN accounts)
 let verifierRows: unknown[] = []       // GET's verifier enrichment query
+let verifierQueryCallCount = 0         // Track calls to accountVerifications branch
 
 vi.mock('../../src/db/client', () => ({
   db: {
@@ -42,6 +43,7 @@ vi.mock('../../src/db/client', () => ({
           return { leftJoin: () => ({ where: async () => backlogRows }) }
         }
         if (table?.__t === 'accountVerifications') {
+          verifierQueryCallCount++
           return { leftJoin: () => ({ leftJoin: () => ({ where: async () => verifierRows }) }) }
         }
         return { where: async () => selectResult } // accounts
@@ -63,6 +65,7 @@ beforeEach(() => {
   selectResult = []
   backlogRows = []
   verifierRows = []
+  verifierQueryCallCount = 0
   publicGetProfile.mockReset()
 })
 
@@ -192,5 +195,6 @@ describe('backlog route GET enrichment', () => {
     const res = await GET(req as any)
     const body = await res.json()
     expect(body.items).toEqual([])
+    expect(verifierQueryCallCount).toBe(0)
   })
 })
