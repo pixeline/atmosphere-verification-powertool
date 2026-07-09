@@ -1,5 +1,5 @@
 import cron from 'node-cron'
-import { eq, isNull } from 'drizzle-orm'
+import { asc, eq, isNull } from 'drizzle-orm'
 import { db } from '../db/client'
 import { crawlRequests } from '../db/schema'
 import { runCrawl } from './run'
@@ -20,7 +20,7 @@ async function claimNextRequest(): Promise<boolean> {
     .select({ id: crawlRequests.id })
     .from(crawlRequests)
     .where(isNull(crawlRequests.claimedAt))
-    .orderBy(crawlRequests.id)
+    .orderBy(asc(crawlRequests.id))
     .limit(1)
   if (!pending) return false
   await db.update(crawlRequests).set({ claimedAt: new Date() }).where(eq(crawlRequests.id, pending.id))

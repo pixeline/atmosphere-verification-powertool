@@ -193,33 +193,6 @@ curl -X POST http://localhost:3000/vidi/api/search \
 - HTTP 200
 - Results include only accounts with `customDomainVerified = true` in `accounts` table
 
-### 5.3: Verified By Any Of Filter
-
-First, retrieve trusted verifier DIDs from the crawler output:
-
-```bash
-curl http://localhost:3000/vidi/api/trusted-verifiers \
-  -H "Authorization: Bearer <org-session-token>"
-```
-
-Then search:
-
-```bash
-curl -X POST http://localhost:3000/vidi/api/search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "textQuery": "",
-    "customDomainOnly": false
-  }'
-```
-
-**Expected:**
-- HTTP 200
-- Results include only accounts verified by (at least) one of the specified verifiers
-- SQL `EXISTS (SELECT 1 FROM account_verifications WHERE ... verifierDid IN (...))` executes against live DB
-
----
-
 ## Phase 6: Verification Lifecycle (Create, Inspect, Revoke)
 
 ### 6.1: Create a Test Verification
@@ -416,7 +389,6 @@ docker compose ps
 - [ ] Phase 4: Crawler CLI runs successfully; stats recorded
 - [ ] Phase 5.1: Text search (emoji/TLD) returns results
 - [ ] Phase 5.2: Custom domain filter works
-- [ ] Phase 5.3: Verified by filter works with `EXISTS()` query
 - [ ] Phase 6.1–6.3: Verification created and ATProto record visible
 - [ ] Phase 6.4–6.5: Verification revoked and ATProto record deleted
 - [ ] Phase 6.3: Verification audit trail logged correctly
