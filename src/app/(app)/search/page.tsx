@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { SearchForm, type SearchFilters } from '@/components/SearchForm'
 import { AccountCard } from '@/components/AccountCard'
@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { useOrg } from '@/lib/hooks/useOrg'
 import { notifyVerifiedCountChanged } from '@/lib/verifiedCountBus'
 
-type TV = { did: string; handle: string }
 type Account = {
   did: string
   handle: string
@@ -23,17 +22,9 @@ type Account = {
 
 export default function SearchPage() {
   const { orgId } = useOrg()
-  const [tvs, setTvs] = useState<TV[]>([])
   const [results, setResults] = useState<Account[]>([])
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [hasSearched, setHasSearched] = useState(false)
-
-  useEffect(() => {
-    fetch('/vidi/api/trusted-verifiers')
-      .then((r) => r.json())
-      .then((d) => setTvs(d.verifiers ?? []))
-      .catch(() => {})
-  }, [])
 
   async function search(filters: SearchFilters) {
     const r = await fetch('/vidi/api/search', {
@@ -86,7 +77,7 @@ export default function SearchPage() {
         <p className="text-muted-foreground">Find accounts to verify and act on them in bulk.</p>
       </div>
 
-      <SearchForm trustedVerifiers={tvs} onSearch={search} />
+      <SearchForm onSearch={search} />
 
       {results.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3">

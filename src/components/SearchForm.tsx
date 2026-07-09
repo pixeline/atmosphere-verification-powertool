@@ -7,40 +7,24 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ACTIVITY_BUCKETS } from '@/lib/activityBuckets'
 
-type TV = { did: string; handle: string }
-
 export type SearchFilters = {
   text: string
   customDomainOnly: boolean
-  followedByVerified: boolean
-  verifiedByAnyOf: string[]
   liveNetwork: boolean
   activeWithinDays: number | null
   excludeVerifiedByUs: boolean
 }
 
-export function SearchForm({
-  trustedVerifiers,
-  onSearch,
-}: {
-  trustedVerifiers: TV[]
-  onSearch: (filters: SearchFilters) => void
-}) {
+export function SearchForm({ onSearch }: { onSearch: (filters: SearchFilters) => void }) {
   const [text, setText] = useState('')
   const [customDomainOnly, setCustomDomainOnly] = useState(false)
-  const [followedByVerified, setFollowedByVerified] = useState(false)
-  const [verifiedByAnyOf, setVerifiedByAnyOf] = useState<string[]>([])
   const [liveNetwork, setLiveNetwork] = useState(false)
   const [activeWithinDays, setActiveWithinDays] = useState<number | null>(null)
   const [excludeVerifiedByUs, setExcludeVerifiedByUs] = useState(true)
 
   function setScope(live: boolean) {
     setLiveNetwork(live)
-    if (live) {
-      setFollowedByVerified(false)
-      setVerifiedByAnyOf([])
-      setActiveWithinDays(null)
-    }
+    if (live) setActiveWithinDays(null)
   }
 
   return (
@@ -53,15 +37,7 @@ export function SearchForm({
           className="flex flex-col gap-5"
           onSubmit={(e) => {
             e.preventDefault()
-            onSearch({
-              text,
-              customDomainOnly,
-              followedByVerified,
-              verifiedByAnyOf,
-              liveNetwork,
-              activeWithinDays,
-              excludeVerifiedByUs,
-            })
+            onSearch({ text, customDomainOnly, liveNetwork, activeWithinDays, excludeVerifiedByUs })
           }}
         >
           <div className="flex flex-col gap-2">
@@ -87,42 +63,6 @@ export function SearchForm({
               />
               Hide accounts already verified by us
             </Label>
-            <Label className="flex items-center gap-2">
-              <Checkbox
-                id="search-followed-by-verified"
-                checked={followedByVerified}
-                disabled={liveNetwork}
-                onCheckedChange={(checked) => {
-                  const isChecked = checked === true
-                  setFollowedByVerified(isChecked)
-                  // "Verified by" only makes sense — and is only shown — as a
-                  // refinement of this filter, so clear it when hidden rather
-                  // than leaving a stale, invisible filter still applied.
-                  if (!isChecked) setVerifiedByAnyOf([])
-                }}
-              />
-              Followed by a verified account
-            </Label>
-            {followedByVerified && trustedVerifiers.length > 0 && (
-              <fieldset className="flex flex-col gap-3 pl-6">
-                <legend className="mb-1 text-sm font-medium">Verified by</legend>
-                {trustedVerifiers.map((tv) => (
-                  <Label key={tv.did} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`tv-${tv.did}`}
-                      checked={verifiedByAnyOf.includes(tv.did)}
-                      disabled={liveNetwork}
-                      onCheckedChange={(checked) =>
-                        setVerifiedByAnyOf((prev) =>
-                          checked === true ? [...prev, tv.did] : prev.filter((d) => d !== tv.did)
-                        )
-                      }
-                    />
-                    {tv.handle}
-                  </Label>
-                ))}
-              </fieldset>
-            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -178,7 +118,7 @@ export function SearchForm({
             </div>
             {liveNetwork && (
               <p className="text-xs text-muted-foreground">
-                Requires text above. Only matches text/domain — verified-by filters don&apos;t apply live.
+                Requires text above. Only matches text/domain.
               </p>
             )}
           </div>
