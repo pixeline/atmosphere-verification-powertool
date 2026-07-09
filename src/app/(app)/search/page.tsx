@@ -16,6 +16,9 @@ type Account = {
   isCustomDomain?: boolean
   verifiers?: { did: string; handle: string | null }[]
   indexed?: boolean
+  followersCount?: number | null
+  followsCount?: number | null
+  lastActiveAt?: string | null
 }
 
 export default function SearchPage() {
