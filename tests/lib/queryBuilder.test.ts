@@ -3,8 +3,8 @@ import { buildConditions } from '../../src/lib/search/queryBuilder'
 
 describe('buildConditions', () => {
   it('produces a condition per active filter', () => {
-    const conds = buildConditions({ text: '🇧🇪', customDomainOnly: true, followedByVerified: true })
-    expect(conds).toHaveLength(3) // text, customDomain, followedByVerified
+    const conds = buildConditions({ text: '🇧🇪', customDomainOnly: true })
+    expect(conds).toHaveLength(2) // text, customDomain
   })
   it('is empty when no filters set', () => {
     expect(buildConditions({})).toHaveLength(0)

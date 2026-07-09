@@ -1,12 +1,10 @@
-import { and, or, ilike, eq, inArray, exists, notExists, gte, type SQL } from 'drizzle-orm'
+import { and, or, ilike, eq, notExists, gte, type SQL } from 'drizzle-orm'
 import { db } from '../../db/client'
-import { accounts, accountVerifications, accountSignals } from '../../db/schema'
+import { accounts, accountVerifications } from '../../db/schema'
 
 export type SearchFilters = {
   text?: string
   customDomainOnly?: boolean
-  verifiedByAnyOf?: string[]
-  followedByVerified?: boolean
   activeWithinDays?: number | null
   excludeVerifiedByUs?: boolean
 }
@@ -18,22 +16,6 @@ export function buildConditions(f: SearchFilters, currentOrgDid: string | null =
     conds.push(or(ilike(accounts.handle, like), ilike(accounts.description, like))!)
   }
   if (f.customDomainOnly) conds.push(eq(accounts.isCustomDomain, true))
-  if (f.verifiedByAnyOf && f.verifiedByAnyOf.length) {
-    conds.push(exists(
-      db.select().from(accountVerifications).where(and(
-        eq(accountVerifications.subjectDid, accounts.did),
-        inArray(accountVerifications.verifierDid, f.verifiedByAnyOf),
-      )),
-    ))
-  }
-  if (f.followedByVerified) {
-    conds.push(exists(
-      db.select().from(accountSignals).where(and(
-        eq(accountSignals.subjectDid, accounts.did),
-        eq(accountSignals.followedByVerified, true),
-      )),
-    ))
-  }
   if (f.activeWithinDays) {
     const cutoff = new Date(Date.now() - f.activeWithinDays * 24 * 60 * 60 * 1000)
     // Deliberate: normal SQL null semantics mean accounts.lastActiveAt IS NULL
