@@ -19,8 +19,6 @@ type Account = {
   isCustomDomain?: boolean
   verifiers?: Verifier[]
   indexed?: boolean
-  followersCount?: number | null
-  followsCount?: number | null
   lastActiveAt?: string | null
 }
 
@@ -72,10 +70,7 @@ export function AccountCard({
           </a>
           {acc.description && <p className="text-sm text-muted-foreground">{acc.description}</p>}
           {showSignals && (
-            <p className="text-xs text-muted-foreground">
-              {acc.followsCount ?? '—'} following · {acc.followersCount ?? '—'} followers ·{' '}
-              {describeLastActive(acc.lastActiveAt)}
-            </p>
+            <p className="text-xs text-muted-foreground">{describeLastActive(acc.lastActiveAt)}</p>
           )}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}

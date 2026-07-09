@@ -61,44 +61,13 @@ describe('AccountCard', () => {
     expect(a.className).not.toBe(b.className)
   })
 
-  it('shows the followers/following/last-active signals line for an indexed account', () => {
-    render(
-      <AccountCard
-        acc={{ ...baseAcc, followersCount: 42, followsCount: 7, lastActiveAt: new Date().toISOString(), indexed: true }}
-      />
-    )
-    expect(screen.getByText(/7 following/i)).toBeTruthy()
-    expect(screen.getByText(/42 followers/i)).toBeTruthy()
+  it('shows the last-active signal line for an indexed account', () => {
+    render(<AccountCard acc={{ ...baseAcc, lastActiveAt: new Date().toISOString(), indexed: true }} />)
     expect(screen.getByText(/Active within 7 days/i)).toBeTruthy()
   })
 
   it('hides the signals line for a live-only, not-yet-indexed result', () => {
     render(<AccountCard acc={{ ...baseAcc, indexed: false }} />)
-    expect(screen.queryByText(/following/i)).toBeNull()
-    expect(screen.queryByText(/followers/i)).toBeNull()
-  })
-
-  it('shows an em dash for null follower/following counts instead of "0"', () => {
-    render(
-      <AccountCard
-        acc={{ ...baseAcc, followersCount: null, followsCount: null, lastActiveAt: null, indexed: true }}
-      />
-    )
-    expect(screen.getByText(/— following/)).toBeTruthy()
-    expect(screen.getByText(/— followers/)).toBeTruthy()
-    expect(screen.queryByText(/0 following/)).toBeNull()
-    expect(screen.queryByText(/0 followers/)).toBeNull()
-  })
-
-  it('still shows "0" for genuinely zero follower/following counts (not an em dash)', () => {
-    render(
-      <AccountCard
-        acc={{ ...baseAcc, followersCount: 0, followsCount: 0, lastActiveAt: null, indexed: true }}
-      />
-    )
-    expect(screen.getByText(/0 following/)).toBeTruthy()
-    expect(screen.getByText(/0 followers/)).toBeTruthy()
-    expect(screen.queryByText(/— following/)).toBeNull()
-    expect(screen.queryByText(/— followers/)).toBeNull()
+    expect(screen.queryByText(/Active/i)).toBeNull()
   })
 })

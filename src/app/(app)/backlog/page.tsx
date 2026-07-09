@@ -12,8 +12,6 @@ type BacklogItem = {
   displayName?: string | null
   description?: string | null
   isCustomDomain?: boolean
-  followersCount?: number | null
-  followsCount?: number | null
   lastActiveAt?: string | null
   verifiers?: { did: string; handle: string | null }[]
 }
@@ -66,8 +64,6 @@ export default function BacklogPage() {
                 displayName: i.displayName,
                 description: i.note ?? i.description,
                 isCustomDomain: i.isCustomDomain,
-                followersCount: i.followersCount,
-                followsCount: i.followsCount,
                 lastActiveAt: i.lastActiveAt,
                 verifiers: i.verifiers,
               }}

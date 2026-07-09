@@ -87,21 +87,6 @@ describe('backlog route account upsert', () => {
     expect(backlogInsert).toBeTruthy()
   })
 
-  it('copies followersCount/followsCount from the resolved profile into the upserted accounts row', async () => {
-    publicGetProfile.mockResolvedValue({
-      data: { handle: 'newfound.brussels', displayName: 'New', description: null, avatar: null, followersCount: 8, followsCount: 20 },
-    })
-    const req = new Request('http://x/vidi/api/backlog', {
-      method: 'POST',
-      body: JSON.stringify({ orgId: 1, subjectDid: 'did:plc:live2', handle: 'newfound.brussels' }),
-    })
-    await POST(req as any)
-    const accountsInsert = insertedValues.find((v) => 'handle' in v)
-    expect(accountsInsert).toBeTruthy()
-    expect(accountsInsert!.followersCount).toBe(8)
-    expect(accountsInsert!.followsCount).toBe(20)
-  })
-
   it('does not touch accounts when handle is absent (already-indexed result)', async () => {
     const req = new Request('http://x/vidi/api/backlog', {
       method: 'POST',
@@ -153,8 +138,6 @@ describe('backlog route GET enrichment', () => {
         displayName: 'Queued Account',
         description: 'a bio',
         isCustomDomain: true,
-        followersCount: 10,
-        followsCount: 5,
         lastActiveAt: '2026-01-01T00:00:00.000Z',
       },
     ]
@@ -173,15 +156,13 @@ describe('backlog route GET enrichment', () => {
       displayName: 'Queued Account',
       description: 'a bio',
       isCustomDomain: true,
-      followersCount: 10,
-      followsCount: 5,
       lastActiveAt: '2026-01-01T00:00:00.000Z',
       verifiers: [{ did: 'did:plc:tv1', handle: 'tv.example' }],
     })
   })
 
   it('returns an empty verifiers array for a queued account with no verification row', async () => {
-    backlogRows = [{ subjectDid: 'did:plc:unverified', note: null, handle: 'x.example', displayName: null, description: null, isCustomDomain: false, followersCount: null, followsCount: null, lastActiveAt: null }]
+    backlogRows = [{ subjectDid: 'did:plc:unverified', note: null, handle: 'x.example', displayName: null, description: null, isCustomDomain: false, lastActiveAt: null }]
     verifierRows = []
     const req = new NextRequest('http://x/vidi/api/backlog?orgId=1')
     const res = await GET(req as any)

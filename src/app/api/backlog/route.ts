@@ -29,8 +29,6 @@ export async function GET(req: NextRequest) {
         displayName: accounts.displayName,
         description: accounts.description,
         isCustomDomain: accounts.isCustomDomain,
-        followersCount: accounts.followersCount,
-        followsCount: accounts.followsCount,
         lastActiveAt: accounts.lastActiveAt,
       })
       .from(backlogItems)
@@ -90,8 +88,6 @@ export async function POST(req: NextRequest) {
             avatar: prof.data.avatar ?? null,
             isCustomDomain: isCustomDomain(prof.data.handle),
             seedSource: 'backlog',
-            followersCount: prof.data.followersCount ?? null,
-            followsCount: prof.data.followsCount ?? null,
           })
         }
       } catch (e) {
