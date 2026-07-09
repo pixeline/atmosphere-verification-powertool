@@ -77,4 +77,28 @@ describe('AccountCard', () => {
     expect(screen.queryByText(/following/i)).toBeNull()
     expect(screen.queryByText(/followers/i)).toBeNull()
   })
+
+  it('shows an em dash for null follower/following counts instead of "0"', () => {
+    render(
+      <AccountCard
+        acc={{ ...baseAcc, followersCount: null, followsCount: null, lastActiveAt: null, indexed: true }}
+      />
+    )
+    expect(screen.getByText(/— following/)).toBeTruthy()
+    expect(screen.getByText(/— followers/)).toBeTruthy()
+    expect(screen.queryByText(/0 following/)).toBeNull()
+    expect(screen.queryByText(/0 followers/)).toBeNull()
+  })
+
+  it('still shows "0" for genuinely zero follower/following counts (not an em dash)', () => {
+    render(
+      <AccountCard
+        acc={{ ...baseAcc, followersCount: 0, followsCount: 0, lastActiveAt: null, indexed: true }}
+      />
+    )
+    expect(screen.getByText(/0 following/)).toBeTruthy()
+    expect(screen.getByText(/0 followers/)).toBeTruthy()
+    expect(screen.queryByText(/— following/)).toBeNull()
+    expect(screen.queryByText(/— followers/)).toBeNull()
+  })
 })

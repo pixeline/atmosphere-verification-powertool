@@ -36,6 +36,14 @@ export function buildConditions(f: SearchFilters, currentOrgDid: string | null =
   }
   if (f.activeWithinDays) {
     const cutoff = new Date(Date.now() - f.activeWithinDays * 24 * 60 * 60 * 1000)
+    // Deliberate: normal SQL null semantics mean accounts.lastActiveAt IS NULL
+    // (not yet checked by a refreshLastActive crawl pass) is excluded from
+    // every "Active within" bucket, rather than assumed active. This is
+    // correct — activity is genuinely unknown for those rows — and
+    // self-limiting, since refreshLastActive picks up any account whose
+    // last_active_checked_at is null (or stale) on its very next pass. The
+    // default "Any time" filter (activeWithinDays: null) is unaffected, as
+    // this whole condition is skipped when the filter isn't set.
     conds.push(gte(accounts.lastActiveAt, cutoff))
   }
   if (f.excludeVerifiedByUs && currentOrgDid) {

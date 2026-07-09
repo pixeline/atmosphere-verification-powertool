@@ -73,7 +73,7 @@ export function AccountCard({
           {acc.description && <p className="text-sm text-muted-foreground">{acc.description}</p>}
           {showSignals && (
             <p className="text-xs text-muted-foreground">
-              {acc.followsCount ?? 0} following · {acc.followersCount ?? 0} followers ·{' '}
+              {acc.followsCount ?? '—'} following · {acc.followersCount ?? '—'} followers ·{' '}
               {describeLastActive(acc.lastActiveAt)}
             </p>
           )}
