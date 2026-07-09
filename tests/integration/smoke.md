@@ -169,9 +169,7 @@ curl -X POST http://localhost:3000/vidi/api/search \
   -H "Content-Type: application/json" \
   -d '{
     "textQuery": "test🎉 .app",
-    "customDomainOnly": false,
-    "verifiedByAnyOf": [],
-    "followedByVerified": false
+    "customDomainOnly": false
   }'
 ```
 
@@ -187,9 +185,7 @@ curl -X POST http://localhost:3000/vidi/api/search \
   -H "Content-Type: application/json" \
   -d '{
     "textQuery": "",
-    "customDomainOnly": true,
-    "verifiedByAnyOf": [],
-    "followedByVerified": false
+    "customDomainOnly": true
   }'
 ```
 
@@ -213,9 +209,7 @@ curl -X POST http://localhost:3000/vidi/api/search \
   -H "Content-Type: application/json" \
   -d '{
     "textQuery": "",
-    "customDomainOnly": false,
-    "verifiedByAnyOf": ["did:plc:verifier1", "did:plc:verifier2"],
-    "followedByVerified": false
+    "customDomainOnly": false
   }'
 ```
 
@@ -223,23 +217,6 @@ curl -X POST http://localhost:3000/vidi/api/search \
 - HTTP 200
 - Results include only accounts verified by (at least) one of the specified verifiers
 - SQL `EXISTS (SELECT 1 FROM account_verifications WHERE ... verifierDid IN (...))` executes against live DB
-
-### 5.4: Followed By Verified Filter
-
-```bash
-curl -X POST http://localhost:3000/vidi/api/search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "textQuery": "",
-    "customDomainOnly": false,
-    "verifiedByAnyOf": [],
-    "followedByVerified": true
-  }'
-```
-
-**Expected:**
-- HTTP 200
-- Results include only accounts with `followedByVerified = true` in `account_signals` table
 
 ---
 
@@ -440,7 +417,6 @@ docker compose ps
 - [ ] Phase 5.1: Text search (emoji/TLD) returns results
 - [ ] Phase 5.2: Custom domain filter works
 - [ ] Phase 5.3: Verified by filter works with `EXISTS()` query
-- [ ] Phase 5.4: Followed by verified filter works
 - [ ] Phase 6.1–6.3: Verification created and ATProto record visible
 - [ ] Phase 6.4–6.5: Verification revoked and ATProto record deleted
 - [ ] Phase 6.3: Verification audit trail logged correctly
