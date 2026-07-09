@@ -73,7 +73,7 @@ export function SettingsView({
         toast.error('Could not start crawl')
         return
       }
-      toast.success('Crawl started — it will run in the background.')
+      toast.success('Crawl queued — the worker will pick it up shortly.')
     } finally {
       setRunning(false)
     }
