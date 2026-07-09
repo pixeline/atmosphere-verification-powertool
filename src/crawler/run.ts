@@ -1,10 +1,9 @@
 import { AtpAgent } from '@atproto/api'
 import { eq } from 'drizzle-orm'
 import { db } from '../db/client'
-import { accountSignals, crawlRuns, orgs } from '../db/schema'
+import { crawlRuns, orgs } from '../db/schema'
 import { syncTrustedVerifiers } from './trustedVerifiers'
 import { crawlVerifications, type VerificationEdge } from './verificationsCrawl'
-import { collectFollowedByVerified } from './followsCrawl'
 import { runKeywordSeed } from './keywordSeed'
 import { hydrateAccounts } from './hydrate'
 import { refreshLastActive } from './refreshLastActive'
@@ -46,21 +45,6 @@ export async function runCrawl(service = process.env.MU_APPVIEW_URL ?? 'https://
     console.error('runCrawl: crawlVerifications failed', err)
   }
   const verifiedSubjects = [...new Set(edges.map((e) => e.subjectDid))]
-  const seedDids = [...new Set([...verifierDids, ...verifiedSubjects])]
-
-  const followedMap = new Map<string, string[]>()
-  for (const seedDid of seedDids) {
-    try {
-      const partial = await collectFollowedByVerified(agent, [seedDid])
-      for (const [did, followers] of partial) {
-        const arr = followedMap.get(did) ?? []
-        for (const f of followers) if (!arr.includes(f)) arr.push(f)
-        followedMap.set(did, arr)
-      }
-    } catch (err) {
-      console.error(`runCrawl: collectFollowedByVerified failed for ${seedDid}`, err)
-    }
-  }
 
   let keywordDids: string[] = []
   try {
@@ -69,7 +53,7 @@ export async function runCrawl(service = process.env.MU_APPVIEW_URL ?? 'https://
     console.error('runCrawl: runKeywordSeed failed', err)
   }
 
-  const allDids = [...new Set([...verifiedSubjects, ...followedMap.keys(), ...keywordDids])]
+  const allDids = [...new Set([...verifiedSubjects, ...keywordDids])]
   try {
     await hydrateAccounts(agent, allDids)
   } catch (err) {
@@ -80,15 +64,6 @@ export async function runCrawl(service = process.env.MU_APPVIEW_URL ?? 'https://
     await refreshLastActive(agent)
   } catch (err) {
     console.error('runCrawl: refreshLastActive failed', err)
-  }
-
-  for (const [did, verifiedFollowers] of followedMap) {
-    try {
-      await db.insert(accountSignals).values({ subjectDid: did, followedByVerified: true, verifiedFollowers })
-        .onConflictDoUpdate({ target: accountSignals.subjectDid, set: { followedByVerified: true, verifiedFollowers } })
-    } catch (err) {
-      console.error(`runCrawl: failed to write accountSignals for ${did}`, err)
-    }
   }
 
   await db.update(crawlRuns)
