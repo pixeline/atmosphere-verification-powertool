@@ -3,9 +3,20 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { useOrg } from '@/lib/hooks/useOrg'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { AccountCard } from '@/components/AccountCard'
 
-type BacklogItem = { subjectDid: string; note?: string | null }
+type BacklogItem = {
+  subjectDid: string
+  note?: string | null
+  handle?: string
+  displayName?: string | null
+  description?: string | null
+  isCustomDomain?: boolean
+  followersCount?: number | null
+  followsCount?: number | null
+  lastActiveAt?: string | null
+  verifiers?: { did: string; handle: string | null }[]
+}
 
 export default function BacklogPage() {
   const { orgId } = useOrg()
@@ -45,24 +56,32 @@ export default function BacklogPage() {
           Nothing pending review.
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           {items.map((i) => (
-            <Card key={i.subjectDid}>
-              <CardContent className="flex items-center justify-between gap-4">
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <span className="truncate font-mono text-xs">{i.subjectDid}</span>
-                  {i.note && <span className="truncate text-sm text-muted-foreground">{i.note}</span>}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
+            <AccountCard
+              key={i.subjectDid}
+              acc={{
+                did: i.subjectDid,
+                handle: i.handle ?? i.subjectDid,
+                displayName: i.displayName,
+                description: i.note ?? i.description,
+                isCustomDomain: i.isCustomDomain,
+                followersCount: i.followersCount,
+                followsCount: i.followsCount,
+                lastActiveAt: i.lastActiveAt,
+                verifiers: i.verifiers,
+              }}
+              actions={
+                <>
                   <Button size="sm" onClick={() => act(i.subjectDid, 'verified')}>
                     Mark verified
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => act(i.subjectDid, 'skipped')}>
                     Skip
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </>
+              }
+            />
           ))}
         </div>
       )}
