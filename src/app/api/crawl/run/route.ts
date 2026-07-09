@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getActor } from '../../../../lib/authz/session'
 import { assertOwner, AuthzError } from '../../../../lib/authz/membership'
-import { runCrawl } from '../../../../crawler/run'
+import { db } from '../../../../db/client'
+import { crawlRequests } from '../../../../db/schema'
 
 function guard<T>(fn: () => Promise<T>) {
   return fn().catch((e) => {
@@ -15,11 +16,10 @@ export async function POST(req: NextRequest) {
     const actor = await getActor(); if (!actor) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
     const { orgId } = await req.json()
     await assertOwner(actor.did, orgId)
-    // Fire-and-forget: a full crawl can take minutes. Vidi runs as a long-lived
-    // Node process (next start in Docker), not serverless, so this async call
-    // keeps running after the response is sent — the same execution model the
-    // scheduled worker process already relies on to run runCrawl() unattended.
-    runCrawl().catch((err) => console.error('crawl/run: manual trigger failed', err))
-    return NextResponse.json({ ok: true, started: true })
+    // The crawl must NOT run in the web-server process (a crash there takes the
+    // whole site down). Enqueue a request; the out-of-process `worker` container
+    // (src/crawler/scheduler.ts) claims and runs it.
+    await db.insert(crawlRequests).values({ requestedByDid: actor.did })
+    return NextResponse.json({ ok: true, queued: true })
   })
 }

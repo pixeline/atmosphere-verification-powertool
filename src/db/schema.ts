@@ -97,6 +97,13 @@ export const crawlSeeds = pgTable('crawl_seeds', {
   enabled: boolean('enabled').notNull().default(true),
 })
 
+export const crawlRequests = pgTable('crawl_requests', {
+  id: serial('id').primaryKey(),
+  requestedByDid: text('requested_by_did'),
+  requestedAt: timestamp('requested_at', { withTimezone: true }).defaultNow(),
+  claimedAt: timestamp('claimed_at', { withTimezone: true }), // null = pending
+})
+
 // OAuth persistence (encrypted payloads)
 export const oauthState = pgTable('oauth_state', {
   key: text('key').primaryKey(),
