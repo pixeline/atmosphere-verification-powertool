@@ -25,13 +25,24 @@ export default function SearchPage() {
   const [hasSearched, setHasSearched] = useState(false)
 
   async function search(filters: SearchFilters) {
-    const r = await fetch('/vidi/api/search', {
-      method: 'POST',
-      body: JSON.stringify({ orgId, filters }),
-    })
-    setResults((await r.json()).results ?? [])
-    setSel(new Set())
-    setHasSearched(true)
+    // Surface (and swallow) failures here so the promise always settles —
+    // SearchForm awaits this to drive its pending state, and an unhandled
+    // rejection would leave the button stuck on "Searching…".
+    try {
+      const r = await fetch('/vidi/api/search', {
+        method: 'POST',
+        body: JSON.stringify({ orgId, filters }),
+      })
+      if (!r.ok) {
+        toast.error('Search failed')
+        return
+      }
+      setResults((await r.json()).results ?? [])
+      setSel(new Set())
+      setHasSearched(true)
+    } catch {
+      toast.error('Search failed')
+    }
   }
 
   async function verify() {

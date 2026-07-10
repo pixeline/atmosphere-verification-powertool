@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,12 +16,13 @@ export type SearchFilters = {
   excludeVerifiedByUs: boolean
 }
 
-export function SearchForm({ onSearch }: { onSearch: (filters: SearchFilters) => void }) {
+export function SearchForm({ onSearch }: { onSearch: (filters: SearchFilters) => void | Promise<void> }) {
   const [text, setText] = useState('')
   const [customDomainOnly, setCustomDomainOnly] = useState(false)
   const [liveNetwork, setLiveNetwork] = useState(false)
   const [activeWithinDays, setActiveWithinDays] = useState<number | null>(null)
   const [excludeVerifiedByUs, setExcludeVerifiedByUs] = useState(true)
+  const [searching, setSearching] = useState(false)
 
   function setScope(live: boolean) {
     setLiveNetwork(live)
@@ -35,9 +37,19 @@ export function SearchForm({ onSearch }: { onSearch: (filters: SearchFilters) =>
       <CardContent>
         <form
           className="flex flex-col gap-5"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault()
-            onSearch({ text, customDomainOnly, liveNetwork, activeWithinDays, excludeVerifiedByUs })
+            // Flip to the pending state synchronously on submit so the click
+            // registers instantly, and hold it until onSearch settles — the
+            // request can take a while and users need immediate confirmation
+            // that something is happening. `Promise.resolve` tolerates a
+            // void-returning onSearch (e.g. in tests) as well as an async one.
+            setSearching(true)
+            try {
+              await Promise.resolve(onSearch({ text, customDomainOnly, liveNetwork, activeWithinDays, excludeVerifiedByUs }))
+            } finally {
+              setSearching(false)
+            }
           }}
         >
           <div className="flex flex-col gap-2">
@@ -123,8 +135,15 @@ export function SearchForm({ onSearch }: { onSearch: (filters: SearchFilters) =>
             )}
           </div>
 
-          <Button type="submit" className="self-start">
-            Search
+          <Button type="submit" className="self-start" disabled={searching}>
+            {searching ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Searching…
+              </>
+            ) : (
+              'Search'
+            )}
           </Button>
         </form>
       </CardContent>

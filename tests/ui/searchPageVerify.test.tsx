@@ -36,6 +36,7 @@ function mockFetchSequence(verifyOk: boolean) {
     }
     if (String(url).includes('/api/search')) {
       return Promise.resolve({
+        ok: true,
         json: async () => ({ results: [{ did: 'did:plc:x', handle: 'x.bsky.social' }] }),
       }) as any
     }

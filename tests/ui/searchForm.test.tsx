@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { SearchForm } from '../../src/components/SearchForm'
 
 // SearchForm uses fixed element ids, so multiple renders left mounted across
@@ -41,30 +41,53 @@ describe('SearchForm', () => {
     expect(checkbox.getAttribute('aria-checked')).toBe('true')
   })
 
-  it('includes excludeVerifiedByUs and activeWithinDays in the submitted filters', () => {
+  it('includes excludeVerifiedByUs and activeWithinDays in the submitted filters', async () => {
     const onSearch = vi.fn()
     render(<SearchForm onSearch={onSearch} />)
     fireEvent.click(screen.getByRole('button', { name: /^search$/i }))
     expect(onSearch).toHaveBeenCalledWith(
       expect.objectContaining({ excludeVerifiedByUs: true, activeWithinDays: null })
     )
+    // let the pending state settle back so the async update is flushed in act()
+    await screen.findByRole('button', { name: /^search$/i })
   })
 
-  it('does not include followedByVerified or verifiedByAnyOf in the submitted filters', () => {
+  it('does not include followedByVerified or verifiedByAnyOf in the submitted filters', async () => {
     const onSearch = vi.fn()
     render(<SearchForm onSearch={onSearch} />)
     fireEvent.click(screen.getByRole('button', { name: /^search$/i }))
     const payload = onSearch.mock.calls[0][0]
     expect(payload).not.toHaveProperty('followedByVerified')
     expect(payload).not.toHaveProperty('verifiedByAnyOf')
+    await screen.findByRole('button', { name: /^search$/i })
   })
 
-  it('selects an activity bucket and includes it in submitted filters', () => {
+  it('selects an activity bucket and includes it in submitted filters', async () => {
     const onSearch = vi.fn()
     render(<SearchForm onSearch={onSearch} />)
     fireEvent.click(screen.getByRole('button', { name: /^1 month$/i }))
     fireEvent.click(screen.getByRole('button', { name: /^search$/i }))
     expect(onSearch).toHaveBeenCalledWith(expect.objectContaining({ activeWithinDays: 30 }))
+    await screen.findByRole('button', { name: /^search$/i })
+  })
+
+  it('shows an immediate pending state on the Search button until onSearch settles', async () => {
+    let resolveSearch: () => void = () => {}
+    const onSearch = vi.fn(() => new Promise<void>((resolve) => { resolveSearch = resolve }))
+    render(<SearchForm onSearch={onSearch} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /^search$/i }))
+
+    // Immediately after the click the button flips to a disabled "Searching…"
+    // state — the direct feedback that the search has started.
+    const pending = await screen.findByRole('button', { name: /searching/i })
+    expect((pending as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.queryByRole('button', { name: /^search$/i })).toBeNull()
+
+    // Once onSearch resolves, it returns to the idle, enabled "Search" state.
+    resolveSearch()
+    const idle = await screen.findByRole('button', { name: /^search$/i })
+    await waitFor(() => expect((idle as HTMLButtonElement).disabled).toBe(false))
   })
 
   it('disables and clears the activity-timeframe control when the live network scope is selected', () => {
