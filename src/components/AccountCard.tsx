@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Check } from 'lucide-react'
+import { CircleCheck } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
@@ -53,7 +53,7 @@ export function AccountCard({
             {acc.isCustomDomain && <Badge variant="secondary">custom domain</Badge>}
             {acc.indexed === false && <Badge variant="secondary">Not yet indexed</Badge>}
             {verifiers.map((v) => (
-              <Check
+              <CircleCheck
                 key={v.did}
                 className={`size-4 ${verifierColorClass(v.did)}`}
                 {...{ title: v.handle ?? v.did } as any}
