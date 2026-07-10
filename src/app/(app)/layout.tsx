@@ -1,6 +1,7 @@
 'use client'
+import { useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useOrg } from '@/lib/hooks/useOrg'
@@ -31,12 +32,33 @@ function ActorIdentity({ handle }: { handle: string | null }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { orgId, role, isAllowlisted, handle, authenticated, loading, verifiedCount, refresh } = useOrg()
   const navLinks = role === 'owner' ? [...BASE_NAV_LINKS, { href: '/settings', label: 'Settings' }] : BASE_NAV_LINKS
+
+  // Auth gate: the API routes already enforce authz server-side (returning
+  // 401/403), but nothing was stopping the client shell from rendering for a
+  // logged-out user — they could navigate a fully-broken UI instead of being
+  // sent to sign in. Once auth resolves as unauthenticated, redirect to the
+  // login page (root `/`, outside this route group, so no redirect loop).
+  useEffect(() => {
+    if (!loading && authenticated === false) router.replace('/')
+  }, [loading, authenticated, router])
 
   async function signOut() {
     await fetch('/vidi/api/auth/logout', { method: 'POST' })
     window.location.href = '/vidi'
+  }
+
+  // Don't render the app shell until auth is confirmed. While it's resolving —
+  // or once we know the user is logged out and the redirect above is in
+  // flight — show a neutral placeholder rather than a navigable-but-dead UI.
+  if (loading || authenticated !== true) {
+    return (
+      <div className="flex min-h-svh items-center justify-center text-sm text-muted-foreground">
+        Loading…
+      </div>
+    )
   }
 
   const orgResolved = !loading && authenticated && orgId == null
