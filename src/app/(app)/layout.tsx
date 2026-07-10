@@ -1,5 +1,5 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { User } from 'lucide-react'
@@ -45,6 +45,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!loading && authenticated === false) router.replace('/')
   }, [loading, authenticated, router])
 
+  // Keep the header's verified count honest as the user navigates: it can
+  // change from actions on other pages or a background crawl, and the layout
+  // stays mounted across client-side navigation (so it never re-fetches on its
+  // own). Skip the initial mount — useOrg already fetches once then.
+  const didMount = useRef(false)
+  useEffect(() => {
+    if (!didMount.current) {
+      didMount.current = true
+      return
+    }
+    refresh()
+  }, [pathname, refresh])
+
   async function signOut() {
     await fetch('/vidi/api/auth/logout', { method: 'POST' })
     window.location.href = '/vidi'
@@ -81,8 +94,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  'text-sm text-muted-foreground transition-colors hover:text-foreground',
-                  pathname?.endsWith(link.href) && 'font-medium text-foreground'
+                  'text-sm text-muted-foreground transition-colors hover:text-primary',
+                  pathname?.endsWith(link.href) && 'font-medium text-primary'
                 )}
               >
                 {link.label}

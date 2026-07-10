@@ -74,7 +74,7 @@ export function AccountCard({
             href={`https://mu.social/profile/${acc.handle}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-fit text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            className="w-fit text-xs text-primary underline-offset-2 hover:underline"
           >
             View on Mu ↗
           </a>

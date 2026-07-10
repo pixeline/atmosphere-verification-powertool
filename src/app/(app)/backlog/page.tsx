@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { useOrg } from '@/lib/hooks/useOrg'
+import { notifyVerifiedCountChanged } from '@/lib/verifiedCountBus'
 import { Button } from '@/components/ui/button'
 import { AccountCard } from '@/components/AccountCard'
 
@@ -29,17 +30,55 @@ export default function BacklogPage() {
     }
   }, [orgId])
 
-  async function act(subjectDid: string, status: string) {
+  async function verify(item: BacklogItem) {
+    // "Mark verified" must actually verify — issue the on-chain verification
+    // record via the same service the Search page uses, not merely flip a
+    // backlog status. The server re-resolves identity, so handle/displayName
+    // here are only hints.
+    const res = await fetch('/vidi/api/verify', {
+      method: 'POST',
+      body: JSON.stringify({
+        orgId,
+        subjects: [{ did: item.subjectDid, handle: item.handle, displayName: item.displayName }],
+      }),
+    })
+    if (!res.ok) {
+      toast.error('Verification failed')
+      return
+    }
+    const { results } = await res.json()
+    const outcome = results?.[0]?.outcome
+    if (outcome === 'error') {
+      toast.error('Verification failed')
+      return
+    }
+    // Record the workflow status too, but best-effort: the verification already
+    // succeeded, so a failed bookkeeping PATCH must not block the UI update or
+    // the count refresh.
+    try {
+      await fetch('/vidi/api/backlog', {
+        method: 'PATCH',
+        body: JSON.stringify({ orgId, subjectDid: item.subjectDid, status: 'verified' }),
+      })
+    } catch {
+      /* verification already landed; status update is best-effort */
+    }
+    setItems((p) => p.filter((i) => i.subjectDid !== item.subjectDid))
+    notifyVerifiedCountChanged()
+    toast.success(outcome === 'skipped-duplicate' ? 'Already verified' : 'Verified')
+  }
+
+  async function skip(subjectDid: string) {
     const res = await fetch('/vidi/api/backlog', {
       method: 'PATCH',
-      body: JSON.stringify({ orgId, subjectDid, status }),
+      body: JSON.stringify({ orgId, subjectDid, status: 'skipped' }),
     })
     if (!res.ok) {
       toast.error('Could not update backlog item')
       return
     }
     setItems((p) => p.filter((i) => i.subjectDid !== subjectDid))
-    toast.success(status === 'verified' ? 'Marked verified' : 'Skipped')
+    toast.success('Skipped')
   }
 
   return (
@@ -69,10 +108,10 @@ export default function BacklogPage() {
               }}
               actions={
                 <>
-                  <Button size="sm" onClick={() => act(i.subjectDid, 'verified')}>
+                  <Button size="sm" onClick={() => verify(i)}>
                     Mark verified
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => act(i.subjectDid, 'skipped')}>
+                  <Button size="sm" variant="outline" onClick={() => skip(i.subjectDid)}>
                     Skip
                   </Button>
                 </>
