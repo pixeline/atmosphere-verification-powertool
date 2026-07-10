@@ -15,16 +15,28 @@ const BASE_NAV_LINKS = [
   { href: '/members', label: 'Members' },
 ]
 
-function ActorIdentity({ handle }: { handle: string | null }) {
+// Round variant of the Vidi favicon (indigo disc + white check), used as the
+// header logomark. `fill-primary` ties it to the same brand indigo as CTAs.
+function VidiMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="12" className="fill-primary" />
+      <path d="M6.8 12.4l3.4 3.4L17.5 8" fill="none" stroke="#ffffff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function ActorIdentity({ handle, avatar }: { handle: string | null; avatar: string | null }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        {handle?.trim() ? (
-          handle.trim().charAt(0).toUpperCase()
-        ) : (
-          <User className="size-4" />
-        )}
-      </span>
+      {avatar ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={avatar} alt="" className="size-7 shrink-0 rounded-full object-cover" />
+      ) : (
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          {handle?.trim() ? handle.trim().charAt(0).toUpperCase() : <User className="size-4" />}
+        </span>
+      )}
       {handle && <span className="hidden text-sm text-muted-foreground sm:inline">@{handle}</span>}
     </div>
   )
@@ -33,8 +45,10 @@ function ActorIdentity({ handle }: { handle: string | null }) {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { orgId, role, isAllowlisted, handle, authenticated, loading, verifiedCount, refresh } = useOrg()
-  const navLinks = role === 'owner' ? [...BASE_NAV_LINKS, { href: '/settings', label: 'Settings' }] : BASE_NAV_LINKS
+  const { orgId, role, isAllowlisted, handle, avatar, authenticated, loading, verifiedCount, refresh } = useOrg()
+  // Settings (crawl keywords) is open to any active member — owner or helper —
+  // not just the owner. Hidden for non-members (no org context to manage).
+  const navLinks = role ? [...BASE_NAV_LINKS, { href: '/settings', label: 'Settings' }] : BASE_NAV_LINKS
 
   // Auth gate: the API routes already enforce authz server-side (returning
   // 401/403), but nothing was stopping the client shell from rendering for a
@@ -80,9 +94,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col">
       <header className="border-b bg-background">
         <div className="mx-auto flex max-w-5xl items-center gap-6 px-4 py-3">
-          <div className="flex items-baseline gap-2">
-            <Link href="/search" className="text-lg font-semibold tracking-tight">
-              Vidi
+          <div className="flex items-center gap-2">
+            <Link href="/search" className="flex items-center gap-2">
+              <VidiMark className="size-6 shrink-0" />
+              <span className="text-lg font-semibold tracking-tight">Vidi</span>
             </Link>
             {verifiedCount != null && (
               <span className="text-sm text-muted-foreground">{verifiedCount} verified</span>
@@ -104,7 +119,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </nav>
           {authenticated && (
             <div className="ml-auto flex items-center gap-3">
-              <ActorIdentity handle={handle} />
+              <ActorIdentity handle={handle} avatar={avatar} />
               <Button variant="outline" size="sm" onClick={signOut}>
                 Sign out
               </Button>

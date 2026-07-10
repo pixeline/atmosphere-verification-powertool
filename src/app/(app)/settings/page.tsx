@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useOrg } from '@/lib/hooks/useOrg'
 
 type Seed = { id: number; keyword: string; enabled: boolean }
@@ -15,10 +15,12 @@ export function SettingsView({
   role,
   orgId,
   seeds: initialSeeds,
+  accountsCount,
 }: {
   role: string
   orgId: number
   seeds: Seed[]
+  accountsCount: number | null
 }) {
   const [seeds, setSeeds] = useState(initialSeeds)
   const [newKeyword, setNewKeyword] = useState('')
@@ -32,8 +34,6 @@ export function SettingsView({
   useEffect(() => {
     setSeeds(initialSeeds)
   }, [initialSeeds])
-
-  if (role !== 'owner') return null
 
   async function addKeyword() {
     if (!newKeyword.trim()) return
@@ -89,6 +89,18 @@ export function SettingsView({
       <Card>
         <CardHeader>
           <CardTitle>Crawl Keywords</CardTitle>
+          <CardDescription>
+            The crawler searches each enabled keyword on the network and harvests matching accounts
+            into the searchable pool that Search browses
+            {accountsCount != null && (
+              <>
+                {' — '}
+                <span className="font-medium text-foreground">{accountsCount.toLocaleString()}</span>
+                {' accounts harvested so far'}
+              </>
+            )}
+            .
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <form
@@ -122,9 +134,11 @@ export function SettingsView({
         </CardContent>
       </Card>
 
-      <Button onClick={runCrawlNow} disabled={running}>
-        {running ? 'Starting…' : 'Run crawl now'}
-      </Button>
+      {role === 'owner' && (
+        <Button onClick={runCrawlNow} disabled={running}>
+          {running ? 'Starting…' : 'Run crawl now'}
+        </Button>
+      )}
     </div>
   )
 }
@@ -132,9 +146,11 @@ export function SettingsView({
 export default function SettingsPage() {
   const { orgId, role, loading } = useOrg()
   const [seeds, setSeeds] = useState<Seed[]>([])
+  const [accountsCount, setAccountsCount] = useState<number | null>(null)
 
   useEffect(() => {
-    if (orgId && role === 'owner') {
+    // Keyword settings are open to any active member (owner or helper).
+    if (orgId && role) {
       fetch(`/vidi/api/crawl-seeds?orgId=${orgId}`)
         .then(async (r) => {
           if (!r.ok) {
@@ -143,11 +159,12 @@ export default function SettingsPage() {
           }
           const d = await r.json()
           setSeeds(d.seeds ?? [])
+          setAccountsCount(d.accountsCount ?? null)
         })
         .catch(() => toast.error('Could not load crawl keywords'))
     }
   }, [orgId, role])
 
   if (loading || !orgId || !role) return null
-  return <SettingsView role={role} orgId={orgId} seeds={seeds} />
+  return <SettingsView role={role} orgId={orgId} seeds={seeds} accountsCount={accountsCount} />
 }

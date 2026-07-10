@@ -3,10 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const getActor = vi.fn()
 const isAllowlisted = vi.fn()
 const countOrgVerifications = vi.fn()
+const getActorAvatar = vi.fn()
 
 vi.mock('../../src/lib/authz/session', () => ({ getActor: () => getActor() }))
 vi.mock('../../src/lib/allowlist', () => ({ isAllowlisted: (did: string) => isAllowlisted(did) }))
 vi.mock('../../src/lib/verify/verifiedCount', () => ({ countOrgVerifications: (did: string) => countOrgVerifications(did) }))
+vi.mock('../../src/lib/atproto/profileCache', () => ({ getActorAvatar: (did: string) => getActorAvatar(did) }))
 
 // Distinguish the members select from the orgs/accountVerifications selects
 // by a sentinel field on the mocked table object passed to `.from()`.
@@ -42,6 +44,8 @@ describe('GET /api/org/context', () => {
     getActor.mockReset()
     isAllowlisted.mockReset()
     countOrgVerifications.mockReset()
+    getActorAvatar.mockReset()
+    getActorAvatar.mockResolvedValue('https://av.example/pic.jpg')
     rowsHolder.memberRows = []
     rowsHolder.orgRows = []
     rowsHolder.verificationCountRows = []
@@ -68,6 +72,7 @@ describe('GET /api/org/context', () => {
       role: 'owner',
       isAllowlisted: true,
       handle: 'org.example.com',
+      avatar: 'https://av.example/pic.jpg',
       verifiedCount: 42,
     })
     expect(countOrgVerifications).toHaveBeenCalledWith('did:plc:org')
@@ -86,6 +91,7 @@ describe('GET /api/org/context', () => {
       role: 'helper',
       isAllowlisted: false,
       handle: 'pixeline.be',
+      avatar: 'https://av.example/pic.jpg',
       verifiedCount: 5,
     })
   })
@@ -114,6 +120,7 @@ describe('GET /api/org/context', () => {
       role: null,
       isAllowlisted: false,
       handle: null,
+      avatar: 'https://av.example/pic.jpg',
       verifiedCount: null,
     })
   })

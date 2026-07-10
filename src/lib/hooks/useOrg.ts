@@ -8,6 +8,7 @@ export function useOrg() {
   const [role, setRole] = useState<string | null>(null)
   const [isAllowlisted, setIsAllowlisted] = useState<boolean>(false)
   const [handle, setHandle] = useState<string | null>(null)
+  const [avatar, setAvatar] = useState<string | null>(null)
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(true)
   const [verifiedCount, setVerifiedCount] = useState<number | null>(null)
@@ -22,6 +23,7 @@ export function useOrg() {
       setRole(d.role ?? null)
       setIsAllowlisted(d.isAllowlisted ?? false)
       setHandle(d.handle ?? null)
+      setAvatar(d.avatar ?? null)
       setVerifiedCount(d.verifiedCount ?? null)
     } catch {
       setAuthenticated(false)
@@ -29,6 +31,7 @@ export function useOrg() {
       setRole(null)
       setIsAllowlisted(false)
       setHandle(null)
+      setAvatar(null)
       setVerifiedCount(null)
     } finally {
       setLoading(false)
@@ -44,5 +47,5 @@ export function useOrg() {
   // the new count without a full page reload — see verifiedCountBus.ts.
   useEffect(() => subscribeVerifiedCountChanged(refresh), [refresh])
 
-  return { orgId, setOrgId, role, isAllowlisted, handle, authenticated, loading, verifiedCount, refresh }
+  return { orgId, setOrgId, role, isAllowlisted, handle, avatar, authenticated, loading, verifiedCount, refresh }
 }

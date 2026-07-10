@@ -67,10 +67,47 @@ describe('AppLayout', () => {
   it('renders children and never redirects when authenticated', () => {
     useOrgMock.mockReturnValue({
       orgId: 1, role: 'helper', isAllowlisted: true, handle: 'org.example.com',
-      authenticated: true, loading: false, verifiedCount: 0, refresh: vi.fn(),
+      avatar: null, authenticated: true, loading: false, verifiedCount: 0, refresh: vi.fn(),
     })
     render(<AppLayout><div>protected content</div></AppLayout>)
     expect(screen.getByText('protected content')).toBeTruthy()
     expect(replaceMock).not.toHaveBeenCalled()
+  })
+
+  it('renders the logged-in avatar image when one is available', () => {
+    useOrgMock.mockReturnValue({
+      orgId: 1, role: 'owner', isAllowlisted: true, handle: 'org.example.com',
+      avatar: 'https://av.example/pic.jpg', authenticated: true, loading: false, verifiedCount: 0, refresh: vi.fn(),
+    })
+    render(<AppLayout>{null}</AppLayout>)
+    expect(document.querySelector('img[src="https://av.example/pic.jpg"]')).toBeTruthy()
+  })
+
+  it('falls back to the handle initial when no avatar is set', () => {
+    useOrgMock.mockReturnValue({
+      orgId: 1, role: 'owner', isAllowlisted: true, handle: 'org.example.com',
+      avatar: null, authenticated: true, loading: false, verifiedCount: 0, refresh: vi.fn(),
+    })
+    render(<AppLayout>{null}</AppLayout>)
+    expect(document.querySelector('img')).toBeNull()
+    expect(screen.getByText('O')).toBeTruthy()
+  })
+
+  it('shows the Settings link for an active member (helper), not just owners', () => {
+    useOrgMock.mockReturnValue({
+      orgId: 1, role: 'helper', isAllowlisted: true, handle: 'pixeline.be',
+      avatar: null, authenticated: true, loading: false, verifiedCount: 0, refresh: vi.fn(),
+    })
+    render(<AppLayout>{null}</AppLayout>)
+    expect(screen.getByRole('link', { name: /settings/i })).toBeTruthy()
+  })
+
+  it('hides the Settings link for a non-member (no org role)', () => {
+    useOrgMock.mockReturnValue({
+      orgId: null, role: null, isAllowlisted: true, handle: null,
+      avatar: null, authenticated: true, loading: false, verifiedCount: null, refresh: vi.fn(),
+    })
+    render(<AppLayout>{null}</AppLayout>)
+    expect(screen.queryByRole('link', { name: /settings/i })).toBeNull()
   })
 })

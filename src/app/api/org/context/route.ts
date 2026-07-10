@@ -5,6 +5,7 @@ import { accountVerifications, members, orgs } from '../../../../db/schema'
 import { getActor } from '../../../../lib/authz/session'
 import { isAllowlisted } from '../../../../lib/allowlist'
 import { countOrgVerifications } from '../../../../lib/verify/verifiedCount'
+import { getActorAvatar } from '../../../../lib/atproto/profileCache'
 
 export async function GET() {
   const actor = await getActor()
@@ -14,6 +15,8 @@ export async function GET() {
   const active = rows.find((r) => r.status === 'active')
 
   const allowlisted = await isAllowlisted(actor.did)
+  // The logged-in profile's avatar (cached); null falls back to initials/icon.
+  const avatar = await getActorAvatar(actor.did)
 
   let handle: string | null = null
   let verifiedCount: number | null = null
@@ -45,6 +48,7 @@ export async function GET() {
     role: active?.role ?? null,
     isAllowlisted: allowlisted,
     handle,
+    avatar,
     verifiedCount,
   })
 }

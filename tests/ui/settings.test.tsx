@@ -15,23 +15,35 @@ describe('SettingsView', () => {
     cleanup()
   })
 
-  it('shows nothing for a helper role', () => {
-    render(<SettingsView role="helper" orgId={1} seeds={[]} />)
-    expect(screen.queryByText(/crawl keywords/i)).toBeNull()
+  it('shows the keyword controls to a helper but hides Run crawl now', () => {
+    render(<SettingsView role="helper" orgId={1} seeds={[{ id: 1, keyword: 'brussels', enabled: true }]} accountsCount={0} />)
+    // Keyword management is open to members…
+    expect(screen.getByText(/crawl keywords/i)).toBeTruthy()
+    expect(screen.getByText('brussels')).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: /add keyword/i })).toBeTruthy()
+    // …but running a crawl stays owner-only.
+    expect(screen.queryByRole('button', { name: /run crawl now/i })).toBeNull()
   })
 
-  it('shows the keyword list and add form for an owner', () => {
+  it('shows the keyword list, add form, and Run crawl now for an owner', () => {
     render(
       <SettingsView
         role="owner"
         orgId={1}
         seeds={[{ id: 1, keyword: 'brussels', enabled: true }]}
+        accountsCount={0}
       />
     )
     expect(screen.getByText(/crawl keywords/i)).toBeTruthy()
     expect(screen.getByText('brussels')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /add/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^add$/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: /run crawl now/i })).toBeTruthy()
+  })
+
+  it('shows the harvested-accounts count in the keywords description', () => {
+    render(<SettingsView role="helper" orgId={1} seeds={[]} accountsCount={42} />)
+    expect(screen.getByText('42')).toBeTruthy()
+    expect(screen.getByText(/accounts harvested so far/i)).toBeTruthy()
   })
 
   it('does not add keyword when fetch returns not ok', async () => {
@@ -42,7 +54,7 @@ describe('SettingsView', () => {
       } as Response)
     )
 
-    render(<SettingsView role="owner" orgId={1} seeds={[]} />)
+    render(<SettingsView role="owner" orgId={1} seeds={[]} accountsCount={null} />)
 
     const input = screen.getByRole('textbox', { name: /add keyword/i }) as HTMLInputElement
     const addButtons = screen.getAllByRole('button', { name: /add/i })
@@ -63,6 +75,7 @@ describe('SettingsView', () => {
         role="owner"
         orgId={1}
         seeds={[{ id: 1, keyword: 'brussels', enabled: true }]}
+        accountsCount={0}
       />
     )
     const input = screen.getByRole('textbox', { name: /add keyword/i })
@@ -75,7 +88,7 @@ describe('SettingsView', () => {
   it('submits the new keyword when Enter is pressed in the input, not just by clicking Add', async () => {
     const fetchMock = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response))
     global.fetch = fetchMock
-    render(<SettingsView role="owner" orgId={1} seeds={[]} />)
+    render(<SettingsView role="owner" orgId={1} seeds={[]} accountsCount={0} />)
 
     const input = screen.getByRole('textbox', { name: /add keyword/i })
     fireEvent.change(input, { target: { value: 'newkw' } })
@@ -100,6 +113,7 @@ describe('SettingsView', () => {
           { id: 1, keyword: 'brussels', enabled: true },
           { id: 2, keyword: 'antwerp', enabled: false },
         ]}
+        accountsCount={0}
       />
     )
     expect(screen.getByRole('button', { name: /brussels/i }).getAttribute('aria-pressed')).toBe('true')
@@ -114,6 +128,7 @@ describe('SettingsView', () => {
         role="owner"
         orgId={1}
         seeds={[{ id: 1, keyword: 'brussels', enabled: true }]}
+        accountsCount={0}
       />
     )
 
@@ -132,11 +147,7 @@ describe('SettingsView', () => {
   })
 
   it('picks up seeds that arrive after the initial mount (parent fetch resolving late)', () => {
-    // SettingsPage renders SettingsView as soon as org context resolves, but
-    // its own crawl-seeds fetch is still in flight at that point — so
-    // SettingsView always mounts with seeds=[] first, then receives the real
-    // list a moment later via a prop update, not at initial mount.
-    const { rerender } = render(<SettingsView role="owner" orgId={1} seeds={[]} />)
+    const { rerender } = render(<SettingsView role="owner" orgId={1} seeds={[]} accountsCount={0} />)
     expect(screen.queryByText('brussels')).toBeNull()
 
     rerender(
@@ -144,6 +155,7 @@ describe('SettingsView', () => {
         role="owner"
         orgId={1}
         seeds={[{ id: 1, keyword: 'brussels', enabled: true }]}
+        accountsCount={0}
       />
     )
 
