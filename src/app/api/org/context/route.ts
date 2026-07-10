@@ -4,6 +4,7 @@ import { db } from '../../../../db/client'
 import { accountVerifications, members, orgs } from '../../../../db/schema'
 import { getActor } from '../../../../lib/authz/session'
 import { isAllowlisted } from '../../../../lib/allowlist'
+import { countOrgVerifications } from '../../../../lib/verify/verifiedCount'
 
 export async function GET() {
   const actor = await getActor()
@@ -23,11 +24,19 @@ export async function GET() {
     // is captured at invite time on the membership row.
     handle = active.role === 'owner' ? (org?.handle ?? active.handle ?? null) : (active.handle ?? null)
     if (org) {
-      const countRows = await db
-        .select({ value: count() })
-        .from(accountVerifications)
-        .where(eq(accountVerifications.verifierDid, org.did))
-      verifiedCount = countRows[0]?.value ?? 0
+      // The live on-network record count is the true total (includes accounts
+      // verified directly on Bluesky/mu, not just via Vidi). Fall back to the
+      // locally-crawled count if the network read fails so the header still
+      // shows a sensible number.
+      try {
+        verifiedCount = await countOrgVerifications(org.did)
+      } catch {
+        const countRows = await db
+          .select({ value: count() })
+          .from(accountVerifications)
+          .where(eq(accountVerifications.verifierDid, org.did))
+        verifiedCount = countRows[0]?.value ?? 0
+      }
     }
   }
 

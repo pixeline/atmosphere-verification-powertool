@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const getActor = vi.fn()
 const isAllowlisted = vi.fn()
+const countOrgVerifications = vi.fn()
 
 vi.mock('../../src/lib/authz/session', () => ({ getActor: () => getActor() }))
 vi.mock('../../src/lib/allowlist', () => ({ isAllowlisted: (did: string) => isAllowlisted(did) }))
+vi.mock('../../src/lib/verify/verifiedCount', () => ({ countOrgVerifications: (did: string) => countOrgVerifications(did) }))
 
 // Distinguish the members select from the orgs/accountVerifications selects
 // by a sentinel field on the mocked table object passed to `.from()`.
@@ -39,6 +41,7 @@ describe('GET /api/org/context', () => {
   beforeEach(() => {
     getActor.mockReset()
     isAllowlisted.mockReset()
+    countOrgVerifications.mockReset()
     rowsHolder.memberRows = []
     rowsHolder.orgRows = []
     rowsHolder.verificationCountRows = []
@@ -51,12 +54,12 @@ describe('GET /api/org/context', () => {
     expect(await res.json()).toEqual({ orgId: null })
   })
 
-  it('returns org handle + isAllowlisted + verifiedCount for an owner', async () => {
+  it('returns org handle + isAllowlisted + live verifiedCount for an owner', async () => {
     getActor.mockResolvedValue({ did: 'did:plc:org' })
     isAllowlisted.mockResolvedValue(true)
+    countOrgVerifications.mockResolvedValue(42)
     rowsHolder.memberRows = [{ orgId: 7, role: 'owner', status: 'active', handle: 'stale.owner' }]
     rowsHolder.orgRows = [{ id: 7, did: 'did:plc:org', handle: 'org.example.com' }]
-    rowsHolder.verificationCountRows = [{ value: 42 }]
 
     const res = await GET()
     expect(res.status).toBe(200)
@@ -67,14 +70,15 @@ describe('GET /api/org/context', () => {
       handle: 'org.example.com',
       verifiedCount: 42,
     })
+    expect(countOrgVerifications).toHaveBeenCalledWith('did:plc:org')
   })
 
-  it('returns the membership handle and verifiedCount for a helper (scoped to the org, not the role)', async () => {
+  it('returns the membership handle and live verifiedCount for a helper (scoped to the org, not the role)', async () => {
     getActor.mockResolvedValue({ did: 'did:plc:helper' })
     isAllowlisted.mockResolvedValue(false)
+    countOrgVerifications.mockResolvedValue(5)
     rowsHolder.memberRows = [{ orgId: 7, role: 'helper', status: 'active', handle: 'pixeline.be' }]
     rowsHolder.orgRows = [{ id: 7, did: 'did:plc:org', handle: 'org.example.com' }]
-    rowsHolder.verificationCountRows = [{ value: 5 }]
 
     const res = await GET()
     expect(await res.json()).toEqual({
@@ -84,6 +88,19 @@ describe('GET /api/org/context', () => {
       handle: 'pixeline.be',
       verifiedCount: 5,
     })
+  })
+
+  it('falls back to the locally-crawled count when the live network read fails', async () => {
+    getActor.mockResolvedValue({ did: 'did:plc:org' })
+    isAllowlisted.mockResolvedValue(true)
+    countOrgVerifications.mockRejectedValue(new Error('network down'))
+    rowsHolder.memberRows = [{ orgId: 7, role: 'owner', status: 'active', handle: 'org.example.com' }]
+    rowsHolder.orgRows = [{ id: 7, did: 'did:plc:org', handle: 'org.example.com' }]
+    rowsHolder.verificationCountRows = [{ value: 400 }]
+
+    const res = await GET()
+    const body = await res.json()
+    expect(body.verifiedCount).toBe(400)
   })
 
   it('returns null orgId/role/handle/verifiedCount for an actor with no membership', async () => {

@@ -10,11 +10,15 @@ vi.mock('../../src/db/client', () => ({ db: { select: () => ({ from: () => ({ wh
 const verifyOne = vi.fn(async ({ subject }: any) => ({ did: subject.did, outcome: 'verified' }))
 vi.mock('../../src/lib/verify/verifyService', () => ({ verifyOne: (arg: unknown) => verifyOne(arg) }))
 
+const invalidate = vi.fn()
+vi.mock('../../src/lib/verify/verifiedCount', () => ({ invalidateOrgVerificationCount: (did: string) => invalidate(did) }))
+
 import { POST } from '../../src/app/api/verify/route'
 
 beforeEach(() => {
   orgResult = [{ id: 1, did: 'did:plc:org', status: 'active' }]
   verifyOne.mockClear()
+  invalidate.mockClear()
 })
 
 describe('verify route batch cap', () => {
@@ -36,5 +40,19 @@ describe('verify route org.status gate', () => {
     const body = await res.json()
     expect(body.error).toBe('org_inactive')
     expect(verifyOne).not.toHaveBeenCalled()
+    // A rejected verify must not bust the count cache.
+    expect(invalidate).not.toHaveBeenCalled()
+  })
+})
+
+describe('verify route count-cache invalidation', () => {
+  it('invalidates the org verified-count cache after a successful verify', async () => {
+    process.env.VIDI_BATCH_MAX = '50'
+    const subjects = [{ did: 'did:plc:s1', handle: 'h1' }]
+    const req = new Request('http://x/vidi/api/verify', { method: 'POST', body: JSON.stringify({ orgId: 1, subjects }) })
+    const res = await POST(req as any)
+    expect(res.status).toBe(200)
+    expect(verifyOne).toHaveBeenCalledTimes(1)
+    expect(invalidate).toHaveBeenCalledWith('did:plc:org')
   })
 })

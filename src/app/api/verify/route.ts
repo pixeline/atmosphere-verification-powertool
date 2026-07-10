@@ -5,6 +5,7 @@ import { orgs } from '../../../db/schema'
 import { getActor } from '../../../lib/authz/session'
 import { assertActiveMember, AuthzError } from '../../../lib/authz/membership'
 import { verifyOne } from '../../../lib/verify/verifyService'
+import { invalidateOrgVerificationCount } from '../../../lib/verify/verifiedCount'
 
 function guard<T>(fn: () => Promise<T>) {
   return fn().catch((e) => {
@@ -29,6 +30,9 @@ export async function POST(req: NextRequest) {
       const r = await verifyOne({ org: { id: org.id, did: org.did }, actorDid: actor.did, subject: s })
       results.push({ did: s.did, ...r })
     }
+    // A verify just changed the org's on-network record count — drop the cached
+    // value so the header recomputes live on the next /api/org/context.
+    invalidateOrgVerificationCount(org.did)
     return NextResponse.json({ results })
   })
 }
