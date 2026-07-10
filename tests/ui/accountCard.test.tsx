@@ -26,7 +26,7 @@ describe('AccountCard', () => {
     expect(screen.getByRole('button', { name: /mark verified/i })).toBeTruthy()
   })
 
-  it('renders one checkmark per verifier with the handle as a title tooltip', () => {
+  it('renders one checkmark per verifier, each naming the verifier on hover', () => {
     render(
       <AccountCard
         acc={{
@@ -38,10 +38,18 @@ describe('AccountCard', () => {
         }}
       />
     )
-    const tv1 = document.querySelector('[title="tv-one.example"]')
-    const tv2 = document.querySelector('[title="tv-two.example"]')
-    expect(tv1).toBeTruthy()
-    expect(tv2).toBeTruthy()
+    // The hover label lives in the SVG's <title> child, which is also the
+    // icon's accessible name — assert via role+name so we verify what a user
+    // (and a screen reader) actually gets.
+    const tv1 = screen.getByRole('img', { name: 'Verified by tv-one.example' })
+    const tv2 = screen.getByRole('img', { name: 'Verified by tv-two.example' })
+    expect(tv1.querySelector('title')?.textContent).toBe('Verified by tv-one.example')
+    expect(tv2.querySelector('title')?.textContent).toBe('Verified by tv-two.example')
+  })
+
+  it('falls back to the DID in the hover label when a verifier has no handle', () => {
+    render(<AccountCard acc={{ ...baseAcc, verifiers: [{ did: 'did:plc:nohandle', handle: null }] }} />)
+    expect(screen.getByRole('img', { name: 'Verified by did:plc:nohandle' })).toBeTruthy()
   })
 
   it('gives different verifiers different color classes (not all identical)', () => {
@@ -56,9 +64,9 @@ describe('AccountCard', () => {
         }}
       />
     )
-    const a = document.querySelector('[title="a.example"]')!
-    const b = document.querySelector('[title="b.example"]')!
-    expect(a.className).not.toBe(b.className)
+    const a = screen.getByRole('img', { name: 'Verified by a.example' })
+    const b = screen.getByRole('img', { name: 'Verified by b.example' })
+    expect(a.getAttribute('class')).not.toBe(b.getAttribute('class'))
   })
 
   it('shows the last-active signal line for an indexed account', () => {

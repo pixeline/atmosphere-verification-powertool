@@ -52,13 +52,23 @@ export function AccountCard({
             <span className="text-muted-foreground">@{acc.handle}</span>
             {acc.isCustomDomain && <Badge variant="secondary">custom domain</Badge>}
             {acc.indexed === false && <Badge variant="secondary">Not yet indexed</Badge>}
-            {verifiers.map((v) => (
-              <CircleCheck
-                key={v.did}
-                className={`size-4 ${verifierColorClass(v.did)}`}
-                {...{ title: v.handle ?? v.did } as any}
-              />
-            ))}
+            {verifiers.map((v) => {
+              // A `<title>` child element (not a `title` attribute) is the
+              // reliable, cross-browser way to get an SVG hover tooltip, and it
+              // doubles as the icon's accessible name. Names the trusted
+              // verifier so hovering a checkmark shows which one granted it.
+              const label = `Verified by ${v.handle ?? v.did}`
+              return (
+                <CircleCheck
+                  key={v.did}
+                  role="img"
+                  aria-label={label}
+                  className={`size-4 ${verifierColorClass(v.did)}`}
+                >
+                  <title>{label}</title>
+                </CircleCheck>
+              )
+            })}
           </Label>
           <a
             href={`https://mu.social/profile/${acc.handle}`}
