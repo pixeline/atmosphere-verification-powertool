@@ -104,6 +104,36 @@ describe('SettingsView', () => {
     )
   })
 
+  it('splits a pasted comma/space list into one chip per city and posts them as a keywords array', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response))
+    global.fetch = fetchMock
+    render(<SettingsView role="owner" orgId={1} seeds={[]} accountsCount={0} />)
+
+    const input = screen.getByRole('textbox', { name: /add keyword/i }) as HTMLInputElement
+    fireEvent.change(input, {
+      target: { value: 'Brussels, Antwerp, Ghent, Charleroi, Liège, Schaerbeek, Anderlecht, Bruges' },
+    })
+    fireEvent.submit(input.closest('form')!)
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/vidi/api/crawl-seeds',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            orgId: 1,
+            keywords: ['Brussels', 'Antwerp', 'Ghent', 'Charleroi', 'Liège', 'Schaerbeek', 'Anderlecht', 'Bruges'],
+          }),
+        })
+      )
+    )
+    // Every city becomes its own chip and the input clears.
+    for (const city of ['Brussels', 'Antwerp', 'Ghent', 'Charleroi', 'Liège', 'Schaerbeek', 'Anderlecht', 'Bruges']) {
+      expect(screen.getByRole('button', { name: new RegExp(city, 'i') })).toBeTruthy()
+    }
+    expect(input.value).toBe('')
+  })
+
   it('shows an enabled keyword as a solid, pressed chip and a disabled one as an outlined, unpressed chip', () => {
     render(
       <SettingsView

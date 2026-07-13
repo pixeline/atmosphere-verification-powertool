@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useOrg } from '@/lib/hooks/useOrg'
+import { parseKeywords } from '@/lib/keywords'
 
 type Seed = { id: number; keyword: string; enabled: boolean }
 
@@ -36,19 +37,26 @@ export function SettingsView({
   }, [initialSeeds])
 
   async function addKeyword() {
-    if (!newKeyword.trim()) return
+    // Split the entry on commas/whitespace so pasting a city list adds one
+    // keyword per city; de-dupes and drops blanks.
+    const parsed = parseKeywords(newKeyword)
+    if (parsed.length === 0) return
     const res = await fetch('/vidi/api/crawl-seeds', {
       method: 'POST',
-      body: JSON.stringify({ orgId, keyword: newKeyword.trim() }),
+      body: JSON.stringify({ orgId, keywords: parsed }),
     })
     if (!res.ok) {
-      toast.error('Could not add keyword')
+      toast.error(parsed.length > 1 ? 'Could not add keywords' : 'Could not add keyword')
       return
     }
     setSeeds((prev) => {
-      const existing = prev.find((s) => s.keyword === newKeyword.trim())
-      if (existing) return prev.map((s) => (s.keyword === newKeyword.trim() ? { ...s, enabled: true } : s))
-      return [...prev, { id: Date.now(), keyword: newKeyword.trim(), enabled: true }]
+      const next = [...prev]
+      for (const kw of parsed) {
+        const idx = next.findIndex((s) => s.keyword.toLowerCase() === kw.toLowerCase())
+        if (idx === -1) next.push({ id: Date.now() + next.length, keyword: kw, enabled: true })
+        else next[idx] = { ...next[idx], enabled: true }
+      }
+      return next
     })
     setNewKeyword('')
   }
@@ -111,8 +119,14 @@ export function SettingsView({
             }}
           >
             <div className="flex flex-1 flex-col gap-1">
-              <Label htmlFor="new-keyword">Add keyword</Label>
-              <Input id="new-keyword" value={newKeyword} onChange={(e) => setNewKeyword(e.target.value)} />
+              <Label htmlFor="new-keyword">Add keywords</Label>
+              <Input
+                id="new-keyword"
+                value={newKeyword}
+                placeholder="Brussels, Antwerp, Ghent…"
+                onChange={(e) => setNewKeyword(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Separate multiple keywords with commas or spaces.</p>
             </div>
             <Button type="submit">Add</Button>
           </form>
