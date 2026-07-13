@@ -19,10 +19,15 @@ export async function GET() {
   const avatar = await getActorAvatar(actor.did)
 
   let handle: string | null = null
+  // The Trusted Verifier org's own handle (e.g. belgium-atmosphe.re), shown in
+  // the header regardless of the caller's role — it identifies who we verify
+  // *for*, whereas `handle` is the caller's own display identity.
+  let orgHandle: string | null = null
   let verifiedCount: number | null = null
   if (active) {
     const orgRows = await db.select().from(orgs).where(eq(orgs.id, active.orgId))
     const org = orgRows[0]
+    orgHandle = org?.handle ?? null
     // An owner's display identity is the org's own handle; a helper's handle
     // is captured at invite time on the membership row.
     handle = active.role === 'owner' ? (org?.handle ?? active.handle ?? null) : (active.handle ?? null)
@@ -48,6 +53,7 @@ export async function GET() {
     role: active?.role ?? null,
     isAllowlisted: allowlisted,
     handle,
+    orgHandle,
     avatar,
     verifiedCount,
   })

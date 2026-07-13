@@ -72,6 +72,7 @@ describe('GET /api/org/context', () => {
       role: 'owner',
       isAllowlisted: true,
       handle: 'org.example.com',
+      orgHandle: 'org.example.com',
       avatar: 'https://av.example/pic.jpg',
       verifiedCount: 42,
     })
@@ -91,6 +92,7 @@ describe('GET /api/org/context', () => {
       role: 'helper',
       isAllowlisted: false,
       handle: 'pixeline.be',
+      orgHandle: 'org.example.com',
       avatar: 'https://av.example/pic.jpg',
       verifiedCount: 5,
     })
@@ -120,6 +122,7 @@ describe('GET /api/org/context', () => {
       role: null,
       isAllowlisted: false,
       handle: null,
+      orgHandle: null,
       avatar: 'https://av.example/pic.jpg',
       verifiedCount: null,
     })

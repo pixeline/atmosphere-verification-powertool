@@ -12,19 +12,38 @@ afterEach(cleanup)
 beforeEach(() => replaceMock.mockClear())
 
 describe('AppLayout', () => {
-  it('shows the verified count next to the Vidi logo when known', () => {
+  it('shows the Trusted Verifier org handle and verified count next to the Vidi logo', () => {
     useOrgMock.mockReturnValue({
       orgId: 1,
       role: 'owner',
       isAllowlisted: true,
       handle: 'org.example.com',
+      orgHandle: 'belgium-atmosphe.re',
       authenticated: true,
       loading: false,
       verifiedCount: 42,
       refresh: vi.fn(),
     })
     render(<AppLayout>{null}</AppLayout>)
+    expect(screen.getByText('belgium-atmosphe.re')).toBeTruthy()
     expect(screen.getByText(/42 verified/i)).toBeTruthy()
+  })
+
+  it('shows the org handle without a count while the count is not yet known', () => {
+    useOrgMock.mockReturnValue({
+      orgId: 1,
+      role: 'owner',
+      isAllowlisted: true,
+      handle: 'org.example.com',
+      orgHandle: 'belgium-atmosphe.re',
+      authenticated: true,
+      loading: false,
+      verifiedCount: null,
+      refresh: vi.fn(),
+    })
+    render(<AppLayout>{null}</AppLayout>)
+    expect(screen.getByText('belgium-atmosphe.re')).toBeTruthy()
+    expect(screen.queryByText(/verified/i)).toBeNull()
   })
 
   it('hides the verified count while it is not yet known', () => {
