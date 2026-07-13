@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { VidiMark } from '@/components/VidiMark'
 
 type Suggestion = {
   did: string
@@ -99,11 +100,15 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center p-4">
+    <main className="flex flex-1 items-center justify-center p-4">
       <Card className="w-full max-w-sm overflow-visible">
-        <CardHeader className="text-center">
+        <CardHeader className="flex flex-col items-center gap-1.5 text-center">
+          <VidiMark className="size-12 shrink-0" />
           <CardTitle className="text-2xl font-semibold tracking-tight">Vidi</CardTitle>
-          <CardDescription>Sign in with your atproto handle to verify accounts.</CardDescription>
+          <CardDescription>
+            Vidi helps Mu Trusted Verifiers find and verify authentic accounts across the network.
+          </CardDescription>
+          <CardDescription>Sign in with your atproto handle to get started.</CardDescription>
         </CardHeader>
         <CardContent>
           <form

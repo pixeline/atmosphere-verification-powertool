@@ -22,11 +22,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
@@ -154,5 +149,13 @@ a {
   }
   html {
     @apply font-sans;
+  }
+  /* Base reset: links inherit color and drop underline by default. Kept inside
+     @layer base (not unlayered) so intentional text-* / hover:text-* color
+     utilities can still override it — an unlayered rule would beat every
+     layered utility and silently neutralize e.g. text-primary on links. */
+  a {
+    color: inherit;
+    text-decoration: none;
   }
 }

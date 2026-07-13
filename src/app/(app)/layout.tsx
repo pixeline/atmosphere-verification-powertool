@@ -6,6 +6,7 @@ import { User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useOrg } from '@/lib/hooks/useOrg'
 import { OnboardOrg } from '@/components/OnboardOrg'
+import { VidiMark } from '@/components/VidiMark'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -14,17 +15,6 @@ const BASE_NAV_LINKS = [
   { href: '/backlog', label: 'Backlog' },
   { href: '/members', label: 'Members' },
 ]
-
-// Round variant of the Vidi favicon (indigo disc + white check), used as the
-// header logomark. `fill-primary` ties it to the same brand indigo as CTAs.
-function VidiMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <circle cx="12" cy="12" r="12" className="fill-primary" />
-      <path d="M6.8 12.4l3.4 3.4L17.5 8" fill="none" stroke="#ffffff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
 
 function ActorIdentity({ handle, avatar }: { handle: string | null; avatar: string | null }) {
   return (
@@ -82,7 +72,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // flight — show a neutral placeholder rather than a navigable-but-dead UI.
   if (loading || authenticated !== true) {
     return (
-      <div className="flex min-h-svh items-center justify-center text-sm text-muted-foreground">
+      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
         Loading…
       </div>
     )
@@ -91,7 +81,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const orgResolved = !loading && authenticated && orgId == null
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex flex-1 flex-col">
       <header className="border-b bg-background">
         <div className="mx-auto flex max-w-5xl items-center gap-6 px-4 py-3">
           <div className="flex items-center gap-2">

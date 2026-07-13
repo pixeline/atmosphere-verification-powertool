@@ -3,6 +3,7 @@ import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
+import { SiteFooter } from "@/components/SiteFooter";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
@@ -18,8 +19,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn("font-sans", geist.variable)}>
-      <body>
+      <body className="flex min-h-svh flex-col">
         {children}
+        <SiteFooter />
         <Toaster />
       </body>
     </html>
