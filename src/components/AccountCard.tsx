@@ -27,11 +27,14 @@ export function AccountCard({
   selected,
   onToggle,
   actions,
+  badges,
 }: {
   acc: Account
   selected?: boolean
   onToggle?: () => void
   actions?: ReactNode
+  /** Extra page-specific badges shown after the handle (e.g. Belgian signals). */
+  badges?: ReactNode
 }) {
   const verifiers = acc.verifiers ?? []
   const showSignals = acc.indexed !== false
@@ -52,6 +55,7 @@ export function AccountCard({
             <span className="text-muted-foreground">@{acc.handle}</span>
             {acc.isCustomDomain && <Badge variant="secondary">custom domain</Badge>}
             {acc.indexed === false && <Badge variant="secondary">Not yet indexed</Badge>}
+            {badges}
             {verifiers.map((v) => {
               // A `<title>` child element (not a `title` attribute) is the
               // reliable, cross-browser way to get an SVG hover tooltip, and it

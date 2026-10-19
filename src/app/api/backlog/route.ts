@@ -103,10 +103,14 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   return guard(async () => {
     const actor = await getActor(); if (!actor) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
-    const { orgId, subjectDid, status } = await req.json()
+    const { orgId, subjectDid, subjectDids, status } = await req.json()
     await assertActiveMember(actor.did, orgId)
+    // `subjectDids` lets the bulk "Verify/Skip selected" actions settle a whole
+    // batch in one round trip; `subjectDid` stays for single-card actions.
+    const targets: string[] = Array.isArray(subjectDids) ? subjectDids : [subjectDid]
+    if (!targets.length) return NextResponse.json({ ok: true })
     await db.update(backlogItems).set({ status })
-      .where(and(eq(backlogItems.orgId, orgId), eq(backlogItems.subjectDid, subjectDid)))
+      .where(and(eq(backlogItems.orgId, orgId), inArray(backlogItems.subjectDid, targets)))
     return NextResponse.json({ ok: true })
   })
 }
